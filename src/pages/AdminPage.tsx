@@ -101,6 +101,7 @@ export default function AdminPage() {
     handleDeleteTask,
     handleCreateBrand,
     handleDeleteBrand,
+    currentUser,
   } = useAdminLogic()
 
   const { theme, toggleTheme } = useTheme()
@@ -214,6 +215,29 @@ export default function AdminPage() {
               </button>
             </nav>
             <div className="mt-auto flex flex-col gap-2">
+              {currentUser && (
+                <div className="mb-2 flex items-center gap-3 rounded-xl bg-gray-50 p-3 dark:bg-gray-700/50">
+                  {currentUser.photoUrl ? (
+                    <img
+                      src={currentUser.photoUrl}
+                      alt={currentUser.name}
+                      className="h-10 w-10 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-lg font-bold text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                      {currentUser.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">
+                      {currentUser.name}
+                    </p>
+                    <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                      {currentUser.role || 'Sin rol'}
+                    </p>
+                  </div>
+                </div>
+              )}
               <button
                 onClick={toggleTheme}
                 className="inline-flex items-center justify-center rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
