@@ -1,0 +1,69 @@
+
+networks:
+  default:
+    driver: bridge
+  proxy:
+    external: true
+    name: proxy
+
+services:
+  web:
+    container_name: tulandingya-web
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - server/.env
+    environment:
+      - VITE_API_BASE=/api
+    networks:
+      - default
+      - proxy
+    depends_on:
+      - api
+    restart: always
+
+  api:
+    container_name: tulandingya-api
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    env_file:
+      - server/.env
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=db
+    networks:
+      - default
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+    volumes:
+      - ./server/uploads:/app/uploads
+    # ports:
+    #   - "4000:4000" # Comentado por seguridad
+
+  db:
+    container_name: tulandingya-db
+    image: mysql:8.4
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-root_password}
+      - MYSQL_DATABASE=tulandingya
+      - MYSQL_USER=landing
+      - MYSQL_PASSWORD=landing_secret
+    networks:
+      - default
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # ports:
+    #   - "3306:3306" # Comentado por seguridad
+
+volumes:
+  db_data:

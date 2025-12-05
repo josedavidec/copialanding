@@ -1,0 +1,83 @@
+import { type CSSProperties } from 'react'
+import { useDraggable } from '@dnd-kit/core'
+import { CSS } from '@dnd-kit/utilities'
+import { type Task, type TeamMember } from '../../types/admin'
+
+type TaskCardProps = {
+  task: Task
+  assignmentOptions: TeamMember[]
+  onDelete: (taskId: number) => void
+  onUpdateStatus: (taskId: number, status: Task['status']) => void
+  onAssign: (taskId: number, memberId: number | null) => void
+}
+
+export function TaskCard({ task, assignmentOptions, onDelete, onUpdateStatus, onAssign }: TaskCardProps) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: `task-${task.id}`, data: { type: 'task', task } })
+
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition: isDragging ? 'none' : 'transform 150ms ease',
+    zIndex: isDragging ? 50 : 'auto',
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`bg-white p-3 rounded-lg shadow-sm border border-gray-200 group cursor-grab ${isDragging ? 'ring-2 ring-blue-200' : 'hover:shadow-md'}`}
+      {...listeners}
+      {...attributes}
+    >
+      <div className="flex justify-between items-start mb-2">
+        <p className="font-medium text-gray-900 text-sm">{task.title}</p>
+        <button 
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete(task.id)
+          }}
+          className="text-gray-400 hover:text-red-500"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          ×
+        </button>
+      </div>
+      
+      <div className="flex flex-col gap-2 mt-3">
+        <select
+          value={task.assignedToId || ''}
+          onChange={(e) => {
+            const val = e.target.value ? Number(e.target.value) : null
+            onAssign(task.id, val)
+          }}
+          className="text-xs border-gray-200 rounded bg-gray-50 py-1 px-2 w-full"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <option value="">Sin asignar</option>
+          {assignmentOptions.map(member => (
+            <option key={member.id} value={member.id}>{member.name}</option>
+          ))}
+        </select>
+
+        <select
+          value={task.status}
+          onChange={(e) => onUpdateStatus(task.id, e.target.value as Task['status'])}
+          className={`text-xs border-none rounded py-1 px-2 w-full font-medium ${
+            task.status === 'completed' ? 'bg-green-50 text-green-700' :
+            task.status === 'in_progress' ? 'bg-blue-50 text-blue-700' :
+            'bg-gray-100 text-gray-600'
+          }`}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <option value="pending">Pendiente</option>
+          <option value="in_progress">En Progreso</option>
+          <option value="completed">Completada</option>
+        </select>
+      </div>
+      
+      <div className="mt-2 text-[10px] text-gray-400 text-right">
+        {new Date(task.createdAt).toLocaleDateString()}
+      </div>
+    </div>
+  )
+}
