@@ -527,9 +527,10 @@ app.get('/api/tasks', async (req, res, next) => {
     }
 
     const [rows] = await pool.query(`
-      SELECT t.*, tm.name as assigned_to_name 
+      SELECT t.*, tm.name as assigned_to_name, b.name as brand_name, b.color as brand_color
       FROM tasks t 
       LEFT JOIN team_members tm ON t.assigned_to = tm.id 
+      LEFT JOIN brands b ON t.brand_id = b.id
       ORDER BY t.created_at DESC
     `)
     
@@ -540,7 +541,11 @@ app.get('/api/tasks', async (req, res, next) => {
       status: row.status,
       assignedToId: row.assigned_to,
       assignedToName: row.assigned_to_name,
+      brandId: row.brand_id,
+      brandName: row.brand_name,
+      brandColor: row.brand_color,
       dueDate: row.due_date,
+      startDate: row.start_date,
       createdAt: row.created_at
     })))
   } catch (error) {
@@ -573,9 +578,10 @@ app.post('/api/tasks', async (req, res, next) => {
 
     const insertedId = result.insertId
     const [rows] = await pool.query(`
-      SELECT t.*, tm.name as assigned_to_name 
+      SELECT t.*, tm.name as assigned_to_name, b.name as brand_name, b.color as brand_color
       FROM tasks t 
       LEFT JOIN team_members tm ON t.assigned_to = tm.id 
+      LEFT JOIN brands b ON t.brand_id = b.id
       WHERE t.id = :id LIMIT 1
     `, { id: insertedId })
 
@@ -587,7 +593,11 @@ app.post('/api/tasks', async (req, res, next) => {
       status: row.status,
       assignedToId: row.assigned_to,
       assignedToName: row.assigned_to_name,
+      brandId: row.brand_id,
+      brandName: row.brand_name,
+      brandColor: row.brand_color,
       dueDate: row.due_date,
+      startDate: row.start_date,
       createdAt: row.created_at
     } : null)
   } catch (error) {
@@ -648,15 +658,11 @@ app.patch('/api/tasks/:id', async (req, res, next) => {
       `UPDATE tasks SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = :id`,
       bindings,
     )
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Tarea no encontrada' })
-    }
-
     const [rows] = await pool.query(`
-      SELECT t.*, tm.name as assigned_to_name 
+      SELECT t.*, tm.name as assigned_to_name, b.name as brand_name, b.color as brand_color
       FROM tasks t 
       LEFT JOIN team_members tm ON t.assigned_to = tm.id 
+      LEFT JOIN brands b ON t.brand_id = b.id
       WHERE t.id = :id LIMIT 1
     `, { id: taskId })
 
@@ -668,7 +674,11 @@ app.patch('/api/tasks/:id', async (req, res, next) => {
       status: row.status,
       assignedToId: row.assigned_to,
       assignedToName: row.assigned_to_name,
+      brandId: row.brand_id,
+      brandName: row.brand_name,
+      brandColor: row.brand_color,
       dueDate: row.due_date,
+      startDate: row.start_date,
       createdAt: row.created_at
     } : null)
   } catch (error) {
