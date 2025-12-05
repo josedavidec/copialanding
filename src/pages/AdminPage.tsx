@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { MetricCard } from '../components/admin/MetricCard'
 import { BoardColumn } from '../components/admin/BoardColumn'
@@ -109,6 +109,20 @@ export default function AdminPage() {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
   const isBoardView = viewMode === 'board'
 
+  useEffect(() => {
+    if (!currentUser) return
+
+    const allowedTabs = []
+    if (currentUser.isAdmin || currentUser.canManageLeads) allowedTabs.push('leads')
+    if (currentUser.isAdmin) allowedTabs.push('team')
+    if (currentUser.isAdmin || currentUser.canManageTasks) allowedTabs.push('tasks')
+    allowedTabs.push('brands')
+
+    if (!allowedTabs.includes(activeTab)) {
+      setActiveTab(allowedTabs[0] as any)
+    }
+  }, [currentUser, activeTab, setActiveTab])
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4 transition-colors duration-200">
@@ -165,42 +179,48 @@ export default function AdminPage() {
               <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Gestiona leads, notas internas y el equipo comercial.</p>
             </div>
             <nav className="space-y-2">
-              <button
-                type="button"
-                onClick={() => setActiveTab('leads')}
-                className={`w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition-colors ${activeTab === 'leads' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}
-              >
-                Leads
-                <span
-                  className={`block text-xs font-normal lg:hidden ${activeTab === 'leads' ? 'text-white/80' : 'text-gray-500'}`}
+              {(currentUser?.isAdmin || currentUser?.canManageLeads) && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('leads')}
+                  className={`w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition-colors ${activeTab === 'leads' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}
                 >
-                  Métricas, filtros y pipeline
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('team')}
-                className={`w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition-colors ${activeTab === 'team' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}
-              >
-                Equipo
-                <span
-                  className={`block text-xs font-normal lg:hidden ${activeTab === 'team' ? 'text-white/80' : 'text-gray-500'}`}
+                  Leads
+                  <span
+                    className={`block text-xs font-normal lg:hidden ${activeTab === 'leads' ? 'text-white/80' : 'text-gray-500'}`}
+                  >
+                    Métricas, filtros y pipeline
+                  </span>
+                </button>
+              )}
+              {currentUser?.isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('team')}
+                  className={`w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition-colors ${activeTab === 'team' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}
                 >
-                  Roles y contactos del equipo
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('tasks')}
-                className={`w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition-colors ${activeTab === 'tasks' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}
-              >
-                Tareas
-                <span
-                  className={`block text-xs font-normal lg:hidden ${activeTab === 'tasks' ? 'text-white/80' : 'text-gray-500'}`}
+                  Equipo
+                  <span
+                    className={`block text-xs font-normal lg:hidden ${activeTab === 'team' ? 'text-white/80' : 'text-gray-500'}`}
+                  >
+                    Roles y contactos del equipo
+                  </span>
+                </button>
+              )}
+              {(currentUser?.isAdmin || currentUser?.canManageTasks) && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('tasks')}
+                  className={`w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition-colors ${activeTab === 'tasks' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}
                 >
-                  Gestor de tareas del equipo
-                </span>
-              </button>
+                  Tareas
+                  <span
+                    className={`block text-xs font-normal lg:hidden ${activeTab === 'tasks' ? 'text-white/80' : 'text-gray-500'}`}
+                  >
+                    Gestor de tareas del equipo
+                  </span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setActiveTab('brands')}

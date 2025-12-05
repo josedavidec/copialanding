@@ -190,8 +190,9 @@ export function useAdminLogic() {
       })
       .then(res => res.ok ? res.json() : null)
       .then(user => {
-        if (user) setCurrentUser(user)
-        else {
+        if (user) {
+          setCurrentUser(normalizeTeamMember(user))
+        } else {
            localStorage.removeItem('auth_token')
            setIsAuthenticated(false)
         }
@@ -216,7 +217,8 @@ export function useAdminLogic() {
       if (response.ok) {
         const data = await response.json()
         setToken(data.token)
-        setCurrentUser(data.user)
+        const normalizedUser = normalizeTeamMember(data.user)
+        setCurrentUser(normalizedUser)
         setIsAuthenticated(true)
         localStorage.setItem('auth_token', data.token)
         

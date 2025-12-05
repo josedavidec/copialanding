@@ -72,16 +72,28 @@ export function normalizeLead(raw: RawLead): Lead {
   }
 }
 
-export function normalizeTeamMember(raw: RawTeamMember & { canManageLeads?: unknown, canManageTasks?: unknown, isAdmin?: unknown, is_admin?: unknown }): TeamMember {
+export function normalizeTeamMember(raw: RawTeamMember & { canManageLeads?: unknown, canManageTasks?: unknown, isAdmin?: unknown, is_admin?: unknown, can_manage_leads?: unknown, can_manage_tasks?: unknown }): TeamMember {
+  const getBool = (val1: unknown, val2: unknown, defaultVal: boolean) => {
+    if (typeof val1 === 'boolean') return val1
+    if (val1 === 1) return true
+    if (val1 === 0) return false
+    
+    if (typeof val2 === 'boolean') return val2
+    if (val2 === 1) return true
+    if (val2 === 0) return false
+    
+    return defaultVal
+  }
+
   return {
     id: Number(raw.id) || Date.now(),
     name: typeof raw.name === 'string' ? raw.name : '',
     email: typeof raw.email === 'string' && raw.email.trim() ? raw.email : null,
     role: typeof raw.role === 'string' && raw.role.trim() ? raw.role : null,
     photoUrl: typeof raw.photoUrl === 'string' ? raw.photoUrl : typeof raw.photo_url === 'string' ? raw.photo_url : null,
-    canManageLeads: typeof raw.canManageLeads === 'boolean' ? raw.canManageLeads : true,
-    canManageTasks: typeof raw.canManageTasks === 'boolean' ? raw.canManageTasks : true,
-    isAdmin: typeof raw.isAdmin === 'boolean' ? raw.isAdmin : typeof raw.is_admin === 'boolean' ? raw.is_admin : false,
+    canManageLeads: getBool(raw.canManageLeads, raw.can_manage_leads, true),
+    canManageTasks: getBool(raw.canManageTasks, raw.can_manage_tasks, true),
+    isAdmin: getBool(raw.isAdmin, raw.is_admin, false),
   }
 }
 
