@@ -72,7 +72,7 @@ export function normalizeLead(raw: RawLead): Lead {
   }
 }
 
-export function normalizeTeamMember(raw: RawTeamMember & { canManageLeads?: unknown, canManageTasks?: unknown }): TeamMember {
+export function normalizeTeamMember(raw: RawTeamMember & { canManageLeads?: unknown, canManageTasks?: unknown, isAdmin?: unknown, is_admin?: unknown }): TeamMember {
   return {
     id: Number(raw.id) || Date.now(),
     name: typeof raw.name === 'string' ? raw.name : '',
@@ -81,6 +81,7 @@ export function normalizeTeamMember(raw: RawTeamMember & { canManageLeads?: unkn
     photoUrl: typeof raw.photoUrl === 'string' ? raw.photoUrl : typeof raw.photo_url === 'string' ? raw.photo_url : null,
     canManageLeads: typeof raw.canManageLeads === 'boolean' ? raw.canManageLeads : true,
     canManageTasks: typeof raw.canManageTasks === 'boolean' ? raw.canManageTasks : true,
+    isAdmin: typeof raw.isAdmin === 'boolean' ? raw.isAdmin : typeof raw.is_admin === 'boolean' ? raw.is_admin : false,
   }
 }
 

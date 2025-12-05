@@ -116,7 +116,7 @@ export default function AdminPage() {
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="admin-username">
-                Usuario (opcional)
+                Correo electrónico
               </label>
               <input
                 id="admin-username"
@@ -125,7 +125,7 @@ export default function AdminPage() {
                 onChange={(event) => setUsername(event.target.value)}
                 autoComplete="username"
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                placeholder="Escribe tu usuario o correo"
+                placeholder="admin@ejemplo.com"
               />
             </div>
             <div>
@@ -136,7 +136,7 @@ export default function AdminPage() {
                 onChange={(event) => setPassword(event.target.value)}
                 autoComplete="current-password"
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                placeholder="Ingresa la contraseña de admin"
+                placeholder="Ingresa tu contraseña"
               />
             </div>
             {error && <p className="text-red-500 text-sm">{error}</p>}
@@ -778,6 +778,20 @@ export default function AdminPage() {
                         placeholder="Ej. Ejecutivo comercial"
                       />
                     </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-semibold text-gray-600 dark:text-gray-400" htmlFor="member-password">
+                        Contraseña {editingMemberId ? '(opcional)' : ''}
+                      </label>
+                      <input
+                        id="member-password"
+                        type="password"
+                        value={teamMemberForm.password || ''}
+                        onChange={handleTeamMemberFieldChange('password')}
+                        autoComplete="new-password"
+                        className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800"
+                        placeholder={editingMemberId ? 'Dejar en blanco para no cambiar' : 'Contraseña de acceso'}
+                      />
+                    </div>
                   </div>
 
                   <div className="flex flex-col gap-1">
@@ -811,6 +825,15 @@ export default function AdminPage() {
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                       Gestiona Tareas
+                    </label>
+                    <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                      <input
+                        type="checkbox"
+                        checked={teamMemberForm.isAdmin}
+                        onChange={handleTeamMemberCheckboxChange('isAdmin')}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      Es Administrador
                     </label>
                   </div>
 
@@ -889,6 +912,11 @@ export default function AdminPage() {
                               {member.canManageTasks && (
                                 <span className="inline-flex items-center rounded-full bg-purple-50 dark:bg-purple-900/30 px-2 py-1 text-xs font-medium text-purple-700 dark:text-purple-400 ring-1 ring-inset ring-purple-700/10 dark:ring-purple-400/30">
                                   Tareas
+                                </span>
+                              )}
+                              {member.isAdmin && (
+                                <span className="inline-flex items-center rounded-full bg-red-50 dark:bg-red-900/30 px-2 py-1 text-xs font-medium text-red-700 dark:text-red-400 ring-1 ring-inset ring-red-700/10 dark:ring-red-400/30">
+                                  Admin
                                 </span>
                               )}
                             </div>

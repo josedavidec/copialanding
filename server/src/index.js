@@ -9,6 +9,10 @@ import { z } from 'zod'
 import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
+import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
+
+const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_change_me'
 
 const app = express()
 
@@ -170,6 +174,8 @@ const teamMemberSchema = z.object({
   role: optionalRole,
   canManageLeads: z.boolean().optional().default(true),
   canManageTasks: z.boolean().optional().default(true),
+  password: z.string().min(6).optional(),
+  isAdmin: z.boolean().optional().default(false),
 })
 
 const teamMemberUpdateSchema = teamMemberSchema
@@ -203,6 +209,76 @@ const newsletterSchema = z.object({
   email: z.string().email().max(160),
 })
 
+async function validateAuth(req) {
+  const authHeader = req.headers['authorization']
+  const token = authHeader && authHeader.split(' ')[1]
+  if (!token) return null
+
+  try {
+    const user = jwt.verify(token, JWT_SECRET)
+    return user
+  } catch (error) {
+    return null
+  }
+}
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body
+    
+    // Master Admin Login (Legacy/Fallback)
+    if (email === 'admin' && password === (process.env.ADMIN_PASSWORD || 'admin123')) {
+      const token = jwt.sign({ id: 0, name: 'Super Admin', role: 'admin', is_admin: true }, JWT_SECRET, { expiresIn: '24h' })
+      return res.json({ token, user: { id: 0, name: 'Super Admin', role: 'admin', is_admin: true } })
+    }
+
+    // Team Member Login
+    const [rows] = await pool.query('SELECT * FROM team_members WHERE email = :email', { email })
+    const user = rows[0]
+
+    if (!user || !user.password_hash) {
+      return res.status(401).json({ message: 'Credenciales inválidas' })
+    }
+
+    const validPassword = await bcrypt.compare(password, user.password_hash)
+    if (!validPassword) {
+      return res.status(401).json({ message: 'Credenciales inválidas' })
+    }
+
+    const token = jwt.sign({ 
+      id: user.id, 
+      name: user.name, 
+      role: user.role, 
+      is_admin: Boolean(user.is_admin),
+      can_manage_leads: Boolean(user.can_manage_leads),
+      can_manage_tasks: Boolean(user.can_manage_tasks)
+    }, JWT_SECRET, { expiresIn: '24h' })
+
+    res.json({ 
+      token, 
+      user: { 
+        id: user.id, 
+        name: user.name, 
+        email: user.email, 
+        role: user.role, 
+        photoUrl: user.photo_url,
+        is_admin: Boolean(user.is_admin),
+        canManageLeads: Boolean(user.can_manage_leads),
+        canManageTasks: Boolean(user.can_manage_tasks)
+      } 
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ message: 'Error en el servidor' })
+  }
+})
+
+app.get('/api/auth/me', async (req, res) => {
+  const user = await validateAuth(req)
+  if (!user) return res.status(401).json({ message: 'No autorizado' })
+  res.json(user)
+})
+
 app.get('/api/health', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT 1 as ok')
@@ -214,8 +290,8 @@ app.get('/api/health', async (req, res) => {
 
 app.get('/api/leads', async (req, res, next) => {
   try {
-    const adminPassword = req.headers['x-admin-password']
-    if (adminPassword !== (process.env.ADMIN_PASSWORD || 'admin123')) {
+    const user = await validateAuth(req)
+    if (!user) {
       return res.status(401).json({ message: 'No autorizado' })
     }
 
@@ -254,8 +330,8 @@ app.patch('/api/leads/:id', async (req, res, next) => {
       return res.status(400).json({ message: 'Identificador inválido' })
     }
 
-    const adminPassword = req.headers['x-admin-password']
-    if (adminPassword !== (process.env.ADMIN_PASSWORD || 'admin123')) {
+    const user = await validateAuth(req)
+    if (!user) {
       return res.status(401).json({ message: 'No autorizado' })
     }
 
@@ -324,8 +400,8 @@ app.delete('/api/leads/:id', async (req, res, next) => {
       return res.status(400).json({ message: 'Identificador inválido' })
     }
 
-    const adminPassword = req.headers['x-admin-password']
-    if (adminPassword !== (process.env.ADMIN_PASSWORD || 'admin123')) {
+    const user = await validateAuth(req)
+    if (!user) {
       return res.status(401).json({ message: 'No autorizado' })
     }
 
@@ -343,20 +419,21 @@ app.delete('/api/leads/:id', async (req, res, next) => {
 
 app.get('/api/team-members', async (req, res, next) => {
   try {
-    const adminPassword = req.headers['x-admin-password']
-    if (adminPassword !== (process.env.ADMIN_PASSWORD || 'admin123')) {
+    const user = await validateAuth(req)
+    if (!user) {
       return res.status(401).json({ message: 'No autorizado' })
     }
 
     const [rows] = await pool.query(
-      'SELECT id, name, email, role, photo_url, can_manage_leads, can_manage_tasks FROM team_members ORDER BY name ASC',
+      'SELECT id, name, email, role, photo_url, can_manage_leads, can_manage_tasks, is_admin FROM team_members ORDER BY name ASC',
     )
 
     return res.json(rows.map(row => ({
       ...row,
       photoUrl: row.photo_url,
       canManageLeads: Boolean(row.can_manage_leads),
-      canManageTasks: Boolean(row.can_manage_tasks)
+      canManageTasks: Boolean(row.can_manage_tasks),
+      isAdmin: Boolean(row.is_admin)
     })))
   } catch (error) {
     next(error)
@@ -365,8 +442,8 @@ app.get('/api/team-members', async (req, res, next) => {
 
 app.post('/api/team-members', upload.single('photo'), async (req, res, next) => {
   try {
-    const adminPassword = req.headers['x-admin-password']
-    if (adminPassword !== (process.env.ADMIN_PASSWORD || 'admin123')) {
+    const user = await validateAuth(req)
+    if (!user || !user.is_admin) {
       return res.status(401).json({ message: 'No autorizado' })
     }
 
@@ -376,12 +453,15 @@ app.post('/api/team-members', upload.single('photo'), async (req, res, next) => 
     if (body.canManageLeads === 'false') body.canManageLeads = false
     if (body.canManageTasks === 'true') body.canManageTasks = true
     if (body.canManageTasks === 'false') body.canManageTasks = false
+    if (body.isAdmin === 'true') body.isAdmin = true
+    if (body.isAdmin === 'false') body.isAdmin = false
 
     const payload = teamMemberSchema.parse(body)
     const photoUrl = req.file ? `/uploads/${req.file.filename}` : null
+    const passwordHash = payload.password ? await bcrypt.hash(payload.password, 10) : null
 
     const [result] = await pool.query(
-      'INSERT INTO team_members (name, email, role, photo_url, can_manage_leads, can_manage_tasks) VALUES (:name, :email, :role, :photoUrl, :canManageLeads, :canManageTasks)',
+      'INSERT INTO team_members (name, email, role, photo_url, can_manage_leads, can_manage_tasks, password_hash, is_admin) VALUES (:name, :email, :role, :photoUrl, :canManageLeads, :canManageTasks, :passwordHash, :isAdmin)',
       {
         name: payload.name,
         email: payload.email,
@@ -389,12 +469,14 @@ app.post('/api/team-members', upload.single('photo'), async (req, res, next) => 
         photoUrl: photoUrl,
         canManageLeads: payload.canManageLeads,
         canManageTasks: payload.canManageTasks,
+        passwordHash: passwordHash,
+        isAdmin: payload.isAdmin,
       },
     )
 
     const insertedId = result.insertId
     const [rows] = await pool.query(
-      'SELECT id, name, email, role, photo_url, can_manage_leads, can_manage_tasks FROM team_members WHERE id = :id LIMIT 1',
+      'SELECT id, name, email, role, photo_url, can_manage_leads, can_manage_tasks, is_admin FROM team_members WHERE id = :id LIMIT 1',
       { id: insertedId },
     )
 
@@ -403,7 +485,8 @@ app.post('/api/team-members', upload.single('photo'), async (req, res, next) => 
       ...row,
       photoUrl: row.photo_url,
       canManageLeads: Boolean(row.can_manage_leads),
-      canManageTasks: Boolean(row.can_manage_tasks)
+      canManageTasks: Boolean(row.can_manage_tasks),
+      isAdmin: Boolean(row.is_admin)
     } : null)
   } catch (error) {
     next(error)
@@ -417,8 +500,8 @@ app.patch('/api/team-members/:id', upload.single('photo'), async (req, res, next
       return res.status(400).json({ message: 'Identificador inválido' })
     }
 
-    const adminPassword = req.headers['x-admin-password']
-    if (adminPassword !== (process.env.ADMIN_PASSWORD || 'admin123')) {
+    const user = await validateAuth(req)
+    if (!user || !user.is_admin) {
       return res.status(401).json({ message: 'No autorizado' })
     }
 
@@ -428,6 +511,8 @@ app.patch('/api/team-members/:id', upload.single('photo'), async (req, res, next
     if (body.canManageLeads === 'false') body.canManageLeads = false
     if (body.canManageTasks === 'true') body.canManageTasks = true
     if (body.canManageTasks === 'false') body.canManageTasks = false
+    if (body.isAdmin === 'true') body.isAdmin = true
+    if (body.isAdmin === 'false') body.isAdmin = false
 
     const payload = teamMemberUpdateSchema.parse(body)
 
@@ -459,6 +544,16 @@ app.patch('/api/team-members/:id', upload.single('photo'), async (req, res, next
       bindings.canManageTasks = payload.canManageTasks
     }
 
+    if (payload.isAdmin !== undefined) {
+      updates.push('is_admin = :isAdmin')
+      bindings.isAdmin = payload.isAdmin
+    }
+
+    if (payload.password) {
+      updates.push('password_hash = :passwordHash')
+      bindings.passwordHash = await bcrypt.hash(payload.password, 10)
+    }
+
     if (req.file) {
       updates.push('photo_url = :photoUrl')
       bindings.photoUrl = `/uploads/${req.file.filename}`
@@ -478,7 +573,7 @@ app.patch('/api/team-members/:id', upload.single('photo'), async (req, res, next
     }
 
     const [rows] = await pool.query(
-      'SELECT id, name, email, role, photo_url, can_manage_leads, can_manage_tasks FROM team_members WHERE id = :id LIMIT 1',
+      'SELECT id, name, email, role, photo_url, can_manage_leads, can_manage_tasks, is_admin FROM team_members WHERE id = :id LIMIT 1',
       { id: memberId },
     )
 
@@ -487,7 +582,8 @@ app.patch('/api/team-members/:id', upload.single('photo'), async (req, res, next
       ...row,
       photoUrl: row.photo_url,
       canManageLeads: Boolean(row.can_manage_leads),
-      canManageTasks: Boolean(row.can_manage_tasks)
+      canManageTasks: Boolean(row.can_manage_tasks),
+      isAdmin: Boolean(row.is_admin)
     } : null)
   } catch (error) {
     next(error)
@@ -501,8 +597,8 @@ app.delete('/api/team-members/:id', async (req, res, next) => {
       return res.status(400).json({ message: 'Identificador inválido' })
     }
 
-    const adminPassword = req.headers['x-admin-password']
-    if (adminPassword !== (process.env.ADMIN_PASSWORD || 'admin123')) {
+    const user = await validateAuth(req)
+    if (!user || !user.is_admin) {
       return res.status(401).json({ message: 'No autorizado' })
     }
 
@@ -521,8 +617,8 @@ app.delete('/api/team-members/:id', async (req, res, next) => {
 // Tasks Endpoints
 app.get('/api/tasks', async (req, res, next) => {
   try {
-    const adminPassword = req.headers['x-admin-password']
-    if (adminPassword !== (process.env.ADMIN_PASSWORD || 'admin123')) {
+    const user = await validateAuth(req)
+    if (!user) {
       return res.status(401).json({ message: 'No autorizado' })
     }
 
@@ -555,8 +651,8 @@ app.get('/api/tasks', async (req, res, next) => {
 
 app.post('/api/tasks', async (req, res, next) => {
   try {
-    const adminPassword = req.headers['x-admin-password']
-    if (adminPassword !== (process.env.ADMIN_PASSWORD || 'admin123')) {
+    const user = await validateAuth(req)
+    if (!user) {
       return res.status(401).json({ message: 'No autorizado' })
     }
 
@@ -612,8 +708,8 @@ app.patch('/api/tasks/:id', async (req, res, next) => {
       return res.status(400).json({ message: 'Identificador inválido' })
     }
 
-    const adminPassword = req.headers['x-admin-password']
-    if (adminPassword !== (process.env.ADMIN_PASSWORD || 'admin123')) {
+    const user = await validateAuth(req)
+    if (!user) {
       return res.status(401).json({ message: 'No autorizado' })
     }
 
@@ -693,8 +789,8 @@ app.delete('/api/tasks/:id', async (req, res, next) => {
       return res.status(400).json({ message: 'Identificador inválido' })
     }
 
-    const adminPassword = req.headers['x-admin-password']
-    if (adminPassword !== (process.env.ADMIN_PASSWORD || 'admin123')) {
+    const user = await validateAuth(req)
+    if (!user) {
       return res.status(401).json({ message: 'No autorizado' })
     }
 
@@ -712,8 +808,8 @@ app.delete('/api/tasks/:id', async (req, res, next) => {
 
 app.get('/api/brands', async (req, res, next) => {
   try {
-    const adminPassword = req.headers['x-admin-password']
-    if (adminPassword !== (process.env.ADMIN_PASSWORD || 'admin123')) {
+    const user = await validateAuth(req)
+    if (!user) {
       return res.status(401).json({ message: 'No autorizado' })
     }
 
@@ -726,8 +822,8 @@ app.get('/api/brands', async (req, res, next) => {
 
 app.post('/api/brands', async (req, res, next) => {
   try {
-    const adminPassword = req.headers['x-admin-password']
-    if (adminPassword !== (process.env.ADMIN_PASSWORD || 'admin123')) {
+    const user = await validateAuth(req)
+    if (!user) {
       return res.status(401).json({ message: 'No autorizado' })
     }
 
@@ -751,8 +847,8 @@ app.delete('/api/brands/:id', async (req, res, next) => {
       return res.status(400).json({ message: 'Identificador inválido' })
     }
 
-    const adminPassword = req.headers['x-admin-password']
-    if (adminPassword !== (process.env.ADMIN_PASSWORD || 'admin123')) {
+    const user = await validateAuth(req)
+    if (!user) {
       return res.status(401).json({ message: 'No autorizado' })
     }
 
@@ -899,6 +995,8 @@ async function ensureTables() {
   await addTeamMemberColumnIfMissing('can_manage_leads', 'can_manage_leads BOOLEAN NOT NULL DEFAULT TRUE')
   await addTeamMemberColumnIfMissing('can_manage_tasks', 'can_manage_tasks BOOLEAN NOT NULL DEFAULT TRUE')
   await addTeamMemberColumnIfMissing('photo_url', 'photo_url VARCHAR(255) NULL')
+  await addTeamMemberColumnIfMissing('password_hash', 'password_hash VARCHAR(255) NULL')
+  await addTeamMemberColumnIfMissing('is_admin', 'is_admin BOOLEAN NOT NULL DEFAULT FALSE')
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS brands (

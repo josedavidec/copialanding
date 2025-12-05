@@ -32,6 +32,8 @@ export function useAdminLogic() {
   const [teamMemberSaving, setTeamMemberSaving] = useState(false)
   const [username, setUsername] = useState('admin')
   const [password, setPassword] = useState('')
+  const [token, setToken] = useState<string | null>(null)
+  const [currentUser, setCurrentUser] = useState<TeamMember | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [error, setError] = useState('')
   const [notification, setNotification] = useState('')
@@ -52,6 +54,8 @@ export function useAdminLogic() {
     role: string
     canManageLeads: boolean
     canManageTasks: boolean
+    isAdmin: boolean
+    password?: string
     photo: File | null
   }>({
     name: '',
@@ -59,13 +63,24 @@ export function useAdminLogic() {
     role: '',
     canManageLeads: true,
     canManageTasks: true,
+    isAdmin: false,
+    password: '',
     photo: null
   })
   const [editingMemberId, setEditingMemberId] = useState<number | null>(null)
   const [activeTab, setActiveTab] = useState<'leads' | 'team' | 'tasks' | 'brands'>('leads')
 
   const resetTeamMemberForm = () => {
-    setTeamMemberForm({ name: '', email: '', role: '', canManageLeads: true, canManageTasks: true, photo: null })
+    setTeamMemberForm({ 
+      name: '', 
+      email: '', 
+      role: '', 
+      canManageLeads: true, 
+      canManageTasks: true, 
+      isAdmin: false,
+      password: '',
+      photo: null 
+    })
     setEditingMemberId(null)
   }
 
@@ -96,13 +111,13 @@ export function useAdminLogic() {
   )
 
   const fetchTeamMembers = useCallback(
-    async (pwd: string) => {
+    async (authToken: string) => {
       setMembersLoading(true)
       try {
         const apiBase = import.meta.env.VITE_API_BASE || '/api'
         const response = await fetch(`${apiBase}/team-members`, {
           headers: {
-            'x-admin-password': pwd,
+            'Authorization': `Bearer ${authToken}`,
           },
         })
 
@@ -127,7 +142,7 @@ export function useAdminLogic() {
   )
 
   const fetchLeads = useCallback(
-    async (pwd: string) => {
+    async (authToken: string) => {
       setLoading(true)
       setError('')
 
@@ -135,7 +150,7 @@ export function useAdminLogic() {
         const apiBase = import.meta.env.VITE_API_BASE || '/api'
         const response = await fetch(`${apiBase}/leads`, {
           headers: {
-            'x-admin-password': pwd,
+            'Authorization': `Bearer ${authToken}`,
           },
         })
 
@@ -144,13 +159,13 @@ export function useAdminLogic() {
           const parsedLeads = (Array.isArray(data) ? data : []).map(normalizeLead)
 
           setLeads(parsedLeads)
-          await fetchTeamMembers(pwd)
-
-          setIsAuthenticated(true)
-          localStorage.setItem('admin_pwd', pwd)
+          await fetchTeamMembers(authToken)
         } else {
-          setError('Contraseña incorrecta o error de conexión')
-          setIsAuthenticated(false)
+          setError('Error de autenticación')
+          if (response.status === 401) {
+            localStorage.removeItem('auth_token')
+            setIsAuthenticated(false)
+          }
         }
       } catch (err) {
         console.error(err)
@@ -163,21 +178,66 @@ export function useAdminLogic() {
   )
 
   useEffect(() => {
-    const savedPwd = localStorage.getItem('admin_pwd')
-    if (savedPwd) {
-      setPassword(savedPwd)
-      void fetchLeads(savedPwd)
+    const savedToken = localStorage.getItem('auth_token')
+    if (savedToken) {
+      setToken(savedToken)
+      setIsAuthenticated(true)
+      void fetchLeads(savedToken)
+      
+      const apiBase = import.meta.env.VITE_API_BASE || '/api'
+      fetch(`${apiBase}/auth/me`, {
+        headers: { 'Authorization': `Bearer ${savedToken}` }
+      })
+      .then(res => res.ok ? res.json() : null)
+      .then(user => {
+        if (user) setCurrentUser(user)
+        else {
+           localStorage.removeItem('auth_token')
+           setIsAuthenticated(false)
+        }
+      })
+      .catch(() => {})
     }
   }, [fetchLeads])
 
-  const handleLogin = (event: FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    fetchLeads(password)
+    setLoading(true)
+    setError('')
+
+    try {
+      const apiBase = import.meta.env.VITE_API_BASE || '/api'
+      const response = await fetch(`${apiBase}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: username, password }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setToken(data.token)
+        setCurrentUser(data.user)
+        setIsAuthenticated(true)
+        localStorage.setItem('auth_token', data.token)
+        
+        await fetchLeads(data.token)
+      } else {
+        setError('Credenciales inválidas')
+        setIsAuthenticated(false)
+      }
+    } catch (err) {
+      console.error(err)
+      setError('Error de conexión')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleLogout = () => {
-    localStorage.removeItem('admin_pwd')
+    localStorage.removeItem('auth_token')
     setIsAuthenticated(false)
+    setToken(null)
+    setCurrentUser(null)
     setPassword('')
     setLeads([])
     setTeamMembers([])
@@ -210,7 +270,7 @@ export function useAdminLogic() {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
-        'x-admin-password': password,
+        'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify(
         newLastContact
@@ -265,7 +325,7 @@ export function useAdminLogic() {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
-        'x-admin-password': password,
+        'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify({ assignedTo: sanitized }),
     })
@@ -289,7 +349,7 @@ export function useAdminLogic() {
   }
 
   const handleDeleteLead = (leadId: number) => {
-    if (!password.trim()) {
+    if (!token) {
       showNotification('Debes iniciar sesión nuevamente')
       return
     }
@@ -311,7 +371,7 @@ export function useAdminLogic() {
     fetch(`${apiBase}/leads/${leadId}`, {
       method: 'DELETE',
       headers: {
-        'x-admin-password': password,
+        'Authorization': `Bearer ${token}`,
       },
     })
       .then((response) => {
@@ -330,12 +390,12 @@ export function useAdminLogic() {
       })
   }
 
-  const handleTeamMemberFieldChange = (field: 'name' | 'email' | 'role') => (event: ChangeEvent<HTMLInputElement>) => {
+  const handleTeamMemberFieldChange = (field: 'name' | 'email' | 'role' | 'password') => (event: ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value
     setTeamMemberForm((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleTeamMemberCheckboxChange = (field: 'canManageLeads' | 'canManageTasks') => (event: ChangeEvent<HTMLInputElement>) => {
+  const handleTeamMemberCheckboxChange = (field: 'canManageLeads' | 'canManageTasks' | 'isAdmin') => (event: ChangeEvent<HTMLInputElement>) => {
     const checked = event.target.checked
     setTeamMemberForm((prev) => ({ ...prev, [field]: checked }))
   }
@@ -354,6 +414,8 @@ export function useAdminLogic() {
       role: member.role ?? '',
       canManageLeads: member.canManageLeads,
       canManageTasks: member.canManageTasks,
+      isAdmin: member.isAdmin,
+      password: '',
       photo: null,
     })
   }
@@ -362,8 +424,7 @@ export function useAdminLogic() {
     event.preventDefault()
     if (teamMemberSaving) return
 
-    const adminPassword = password.trim()
-    if (!adminPassword) {
+    if (!token) {
       showNotification('Debes iniciar sesión nuevamente')
       return
     }
@@ -388,6 +449,12 @@ export function useAdminLogic() {
     formData.append('role', trimmedRole)
     formData.append('canManageLeads', String(teamMemberForm.canManageLeads))
     formData.append('canManageTasks', String(teamMemberForm.canManageTasks))
+    formData.append('isAdmin', String(teamMemberForm.isAdmin))
+    
+    if (teamMemberForm.password) {
+      formData.append('password', teamMemberForm.password)
+    }
+
     if (teamMemberForm.photo) {
       formData.append('photo', teamMemberForm.photo)
     }
@@ -398,7 +465,7 @@ export function useAdminLogic() {
       const response = await fetch(endpoint, {
         method,
         headers: {
-          'x-admin-password': adminPassword,
+          'Authorization': `Bearer ${token}`,
         },
         body: formData,
       })
@@ -439,8 +506,7 @@ export function useAdminLogic() {
   }
 
   const handleDeleteTeamMember = async (memberId: number) => {
-    const adminPassword = password.trim()
-    if (!adminPassword) {
+    if (!token) {
       showNotification('Debes iniciar sesión nuevamente')
       return
     }
@@ -459,7 +525,7 @@ export function useAdminLogic() {
       const response = await fetch(`${apiBase}/team-members/${memberId}`, {
         method: 'DELETE',
         headers: {
-          'x-admin-password': adminPassword,
+          'Authorization': `Bearer ${token}`,
         },
       })
 
@@ -477,7 +543,7 @@ export function useAdminLogic() {
   const handleMarkContact = (leadId: number) => {
     const targetLead = leads.find((lead) => lead.id === leadId)
     if (!targetLead) return
-    if (!password) {
+    if (!token) {
       showNotification('Debes iniciar sesión nuevamente')
       return
     }
@@ -509,7 +575,7 @@ export function useAdminLogic() {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
-        'x-admin-password': password,
+        'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify(payload),
     })
@@ -573,7 +639,7 @@ export function useAdminLogic() {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
-        'x-admin-password': password,
+        'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify({ note: noteDraft }),
     })
@@ -607,7 +673,7 @@ export function useAdminLogic() {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
-        'x-admin-password': password,
+        'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify({ tags: newTags }),
     })
@@ -834,12 +900,12 @@ export function useAdminLogic() {
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [teamMembers])
 
-  const fetchBrands = useCallback(async (pwd: string) => {
+  const fetchBrands = useCallback(async (authToken: string) => {
     setBrandsLoading(true)
     try {
       const apiBase = import.meta.env.VITE_API_BASE || '/api'
       const response = await fetch(`${apiBase}/brands`, {
-        headers: { 'x-admin-password': pwd },
+        headers: { 'Authorization': `Bearer ${authToken}` },
       })
       if (!response.ok) throw new Error('Error al cargar marcas')
       const data = await response.json()
@@ -853,8 +919,7 @@ export function useAdminLogic() {
   }, [showNotification])
 
   const handleCreateBrand = async (name: string, color: string, pkg: string, contactInfo: string) => {
-    const adminPassword = password.trim()
-    if (!adminPassword) return
+    if (!token) return
 
     const apiBase = import.meta.env.VITE_API_BASE || '/api'
     try {
@@ -862,7 +927,7 @@ export function useAdminLogic() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-password': adminPassword,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ name, color, package: pkg, contactInfo }),
       })
@@ -877,8 +942,7 @@ export function useAdminLogic() {
   }
 
   const handleDeleteBrand = async (brandId: number) => {
-    const adminPassword = password.trim()
-    if (!adminPassword) return
+    if (!token) return
 
     if (!window.confirm('¿Eliminar esta marca? Las tareas asociadas perderán la marca.')) return
 
@@ -888,7 +952,7 @@ export function useAdminLogic() {
     try {
       await fetch(`${apiBase}/brands/${brandId}`, {
         method: 'DELETE',
-        headers: { 'x-admin-password': adminPassword },
+        headers: { 'Authorization': `Bearer ${token}` },
       })
       showNotification('Marca eliminada')
     } catch (err) {
@@ -897,12 +961,12 @@ export function useAdminLogic() {
     }
   }
 
-  const fetchTasks = useCallback(async (pwd: string) => {
+  const fetchTasks = useCallback(async (authToken: string) => {
     setTasksLoading(true)
     try {
       const apiBase = import.meta.env.VITE_API_BASE || '/api'
       const response = await fetch(`${apiBase}/tasks`, {
-        headers: { 'x-admin-password': pwd },
+        headers: { 'Authorization': `Bearer ${authToken}` },
       })
       if (!response.ok) throw new Error('Error al cargar tareas')
       const data = await response.json()
@@ -916,8 +980,7 @@ export function useAdminLogic() {
   }, [showNotification])
 
   const handleCreateTask = async (title: string, assignedToId: number | null, brandId: number | null, dueDate: string | null, startDate: string | null) => {
-    const adminPassword = password.trim()
-    if (!adminPassword) return
+    if (!token) return
 
     const apiBase = import.meta.env.VITE_API_BASE || '/api'
     try {
@@ -925,7 +988,7 @@ export function useAdminLogic() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-password': adminPassword,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ title, assignedToId, brandId, dueDate, startDate }),
       })
@@ -940,8 +1003,7 @@ export function useAdminLogic() {
   }
 
   const handleUpdateTaskStatus = async (taskId: number, newStatus: Task['status']) => {
-    const adminPassword = password.trim()
-    if (!adminPassword) return
+    if (!token) return
 
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t))
 
@@ -951,7 +1013,7 @@ export function useAdminLogic() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-password': adminPassword,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ status: newStatus }),
       })
@@ -962,8 +1024,7 @@ export function useAdminLogic() {
   }
 
   const handleDeleteTask = async (taskId: number) => {
-    const adminPassword = password.trim()
-    if (!adminPassword) return
+    if (!token) return
 
     if (!window.confirm('¿Eliminar esta tarea?')) return
 
@@ -973,7 +1034,7 @@ export function useAdminLogic() {
     try {
       await fetch(`${apiBase}/tasks/${taskId}`, {
         method: 'DELETE',
-        headers: { 'x-admin-password': adminPassword },
+        headers: { 'Authorization': `Bearer ${token}` },
       })
       showNotification('Tarea eliminada')
     } catch (err) {
@@ -983,8 +1044,7 @@ export function useAdminLogic() {
   }
 
   const handleAssignTask = async (taskId: number, assignedToId: number | null) => {
-    const adminPassword = password.trim()
-    if (!adminPassword) return
+    if (!token) return
 
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, assignedToId } : t))
 
@@ -994,7 +1054,7 @@ export function useAdminLogic() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-password': adminPassword,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ assignedToId }),
       })
@@ -1022,15 +1082,15 @@ export function useAdminLogic() {
   }
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && token) {
       if (activeTab === 'tasks') {
-        fetchTasks(password)
-        fetchBrands(password)
+        fetchTasks(token)
+        fetchBrands(token)
       } else if (activeTab === 'brands') {
-        fetchBrands(password)
+        fetchBrands(token)
       }
     }
-  }, [isAuthenticated, activeTab, fetchTasks, fetchBrands, password])
+  }, [isAuthenticated, activeTab, fetchTasks, fetchBrands, token])
 
   const serviceOptions = useMemo(() => {
     const options = new Set<string>()
@@ -1081,6 +1141,7 @@ export function useAdminLogic() {
   return {
     leads,
     teamMembers,
+    currentUser,
     loading,
     membersLoading,
     teamMemberSaving,

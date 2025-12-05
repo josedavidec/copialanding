@@ -39,6 +39,7 @@ export type TeamMember = {
   photoUrl: string | null
   canManageLeads: boolean
   canManageTasks: boolean
+  isAdmin: boolean
 }
 
 export type TaskStatus = 'pending' | 'in_progress' | 'completed'
