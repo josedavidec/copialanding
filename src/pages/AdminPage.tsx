@@ -8,12 +8,16 @@ import {
   STATUS_OPTIONS,
   STATUS_STYLES,
   type LeadStatus,
+  type TaskStatus,
   type StatusFilter,
   type ServiceFilter,
   type AssignedFilter,
   ATTENTION_THRESHOLD_DAYS,
 } from '../types/admin'
 import { formatDate, formatRelativeFromNow, leadNeedsAttention } from '../utils/adminUtils'
+
+import { BrandManager } from '../components/admin/BrandManager'
+import { TaskCalendar } from '../components/admin/TaskCalendar'
 
 export default function AdminPage() {
   const {
@@ -30,10 +34,12 @@ export default function AdminPage() {
     assignedFilter,
     serviceFilter,
     tagFilter,
+    brandFilter,
     showAttentionOnly,
     searchTerm,
     noteDraft,
     viewMode,
+    taskViewMode,
     teamMemberForm,
     editingMemberId,
     activeTab,
@@ -53,11 +59,13 @@ export default function AdminPage() {
     setAssignedFilter,
     setServiceFilter,
     setTagFilter,
+    setBrandFilter,
     setShowAttentionOnly,
     setSearchTerm,
     setActiveLeadId,
     setNoteDraft,
     setViewMode,
+    setTaskViewMode,
     setActiveTab,
     handleLogin,
     handleLogout,
@@ -82,12 +90,16 @@ export default function AdminPage() {
     handleTeamMemberCheckboxChange,
     handleTeamMemberPhotoChange,
     tasks,
+    brands,
+    brandsLoading,
     taskAssignmentOptions,
     handleCreateTask,
     handleUpdateTaskStatus,
     handleAssignTask,
     handleTaskDragEnd,
     handleDeleteTask,
+    handleCreateBrand,
+    handleDeleteBrand,
   } = useAdminLogic()
 
   const [tagInput, setTagInput] = useState('')
@@ -186,6 +198,18 @@ export default function AdminPage() {
                   Gestor de tareas del equipo
                 </span>
               </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('brands')}
+                className={`w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition-colors ${activeTab === 'brands' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}
+              >
+                Marcas
+                <span
+                  className={`block text-xs font-normal lg:hidden ${activeTab === 'brands' ? 'text-white/80' : 'text-gray-500'}`}
+                >
+                  Gestión de clientes y paquetes
+                </span>
+              </button>
             </nav>
             <button
               onClick={handleLogout}
@@ -198,13 +222,15 @@ export default function AdminPage() {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">
-                  {activeTab === 'leads' ? 'Panel de Leads' : activeTab === 'team' ? 'Gestión de Equipo' : 'Gestor de Tareas'}
+                  {activeTab === 'leads' ? 'Panel de Leads' : activeTab === 'team' ? 'Gestión de Equipo' : activeTab === 'brands' ? 'Gestión de Marcas' : 'Gestor de Tareas'}
                 </h1>
                 <p className="text-sm text-gray-600 mt-1">
                   {activeTab === 'leads' 
                     ? 'Gestiona contactos, notas internas y métricas clave en tiempo real.'
                     : activeTab === 'team'
                     ? 'Administra los miembros del equipo y sus permisos.'
+                    : activeTab === 'brands'
+                    ? 'Administra las marcas o clientes para organizar las tareas.'
                     : 'Organiza y asigna tareas pendientes al equipo.'}
                 </p>
               </div>
@@ -234,6 +260,33 @@ export default function AdminPage() {
                     <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" aria-hidden />
                     Actualizar
                   </button>
+                </div>
+              )}
+              {activeTab === 'tasks' && (
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  <div className="flex overflow-hidden rounded-lg border border-gray-300 bg-white text-sm font-medium shadow-sm">
+                    <button
+                      type="button"
+                      onClick={() => setTaskViewMode('list')}
+                      className={`px-3 py-1.5 transition-colors ${taskViewMode === 'list' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                    >
+                      Lista
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTaskViewMode('board')}
+                      className={`px-3 py-1.5 transition-colors ${taskViewMode === 'board' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                    >
+                      Kanban
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTaskViewMode('calendar')}
+                      className={`px-3 py-1.5 transition-colors ${taskViewMode === 'calendar' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                    >
+                      Calendario
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -868,36 +921,224 @@ export default function AdminPage() {
                   </table>
                 </div>
               </div>
+            ) : activeTab === 'brands' ? (
+              <BrandManager 
+                brands={brands} 
+                loading={brandsLoading} 
+                onCreate={handleCreateBrand} 
+                onDelete={handleDeleteBrand} 
+              />
             ) : (
               <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-lg font-semibold text-gray-900">Tablero de Tareas</h2>
-                  <button
-                    onClick={() => {
-                      const title = prompt('Título de la tarea:')
-                      if (title) handleCreateTask(title, null, null)
+                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Nueva Tarea</h2>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      const form = e.currentTarget
+                      const title = (form.elements.namedItem('title') as HTMLInputElement).value
+                      const assignedTo = (form.elements.namedItem('assignedTo') as HTMLSelectElement).value
+                      const brandId = (form.elements.namedItem('brandId') as HTMLSelectElement).value
+                      const dueDate = (form.elements.namedItem('dueDate') as HTMLInputElement).value
+                      const startDate = (form.elements.namedItem('startDate') as HTMLInputElement).value
+                      
+                      if (title.trim()) {
+                        handleCreateTask(
+                          title.trim(), 
+                          assignedTo ? Number(assignedTo) : null, 
+                          brandId ? Number(brandId) : null,
+                          dueDate || null,
+                          startDate || null
+                        )
+                        form.reset()
+                      }
                     }}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium"
+                    className="flex flex-col gap-4 md:flex-row md:items-end"
                   >
-                    + Nueva Tarea
-                  </button>
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Título</label>
+                      <input
+                        name="title"
+                        type="text"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder="¿Qué hay que hacer?"
+                        required
+                      />
+                    </div>
+                    <div className="w-full md:w-48">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Marca</label>
+                      <select
+                        name="brandId"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      >
+                        <option value="">Sin marca</option>
+                        {brands.map(brand => (
+                          <option key={brand.id} value={brand.id}>{brand.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="w-full md:w-48">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Asignar a</label>
+                      <select
+                        name="assignedTo"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      >
+                        <option value="">Sin asignar</option>
+                        {taskAssignmentOptions.map(member => (
+                          <option key={member.id} value={member.id}>{member.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="w-full md:w-40">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Inicio</label>
+                      <input
+                        name="startDate"
+                        type="date"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      />
+                    </div>
+                    <div className="w-full md:w-40">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Vencimiento</label>
+                      <input
+                        name="dueDate"
+                        type="date"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Crear
+                    </button>
+                  </form>
                 </div>
 
-                <DndContext sensors={sensors} onDragEnd={handleTaskDragEnd}>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {(['pending', 'in_progress', 'completed'] as const).map((status) => (
-                      <TaskBoardColumn
-                        key={status}
-                        status={status}
-                        tasks={tasks.filter(t => t.status === status)}
-                        assignmentOptions={taskAssignmentOptions}
-                        onDelete={handleDeleteTask}
-                        onUpdateStatus={handleUpdateTaskStatus}
-                        onAssign={handleAssignTask}
-                      />
+                {/* Filters */}
+                <div className="flex items-center gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                  <span className="text-sm font-medium text-gray-700">Filtrar por marca:</span>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    <button
+                      onClick={() => setBrandFilter('Todos')}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
+                        brandFilter === 'Todos' 
+                          ? 'bg-gray-800 text-white' 
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      Todas
+                    </button>
+                    {brands.map(brand => (
+                      <button
+                        key={brand.id}
+                        onClick={() => setBrandFilter(String(brand.id))}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap flex items-center gap-2 ${
+                          brandFilter === String(brand.id)
+                            ? 'text-white ring-2 ring-offset-1'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                        style={brandFilter === String(brand.id) ? { backgroundColor: brand.color, borderColor: brand.color } : {}}
+                      >
+                        <span className="w-2 h-2 rounded-full bg-current" style={{ color: brandFilter === String(brand.id) ? 'white' : brand.color }} />
+                        {brand.name}
+                      </button>
                     ))}
                   </div>
-                </DndContext>
+                </div>
+
+                {taskViewMode === 'calendar' ? (
+                  <TaskCalendar 
+                    tasks={tasks.filter(t => brandFilter === 'Todos' || String(t.brandId) === brandFilter)} 
+                  />
+                ) : taskViewMode === 'board' ? (
+                  <DndContext sensors={sensors} onDragEnd={handleTaskDragEnd}>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full overflow-x-auto pb-4">
+                      {(['pending', 'in_progress', 'completed'] as const).map(status => (
+                        <TaskBoardColumn
+                          key={status}
+                          status={status}
+                          tasks={tasks.filter(t => 
+                            t.status === status && 
+                            (brandFilter === 'Todos' || String(t.brandId) === brandFilter)
+                          )}
+                          assignmentOptions={taskAssignmentOptions}
+                          onDelete={handleDeleteTask}
+                          onUpdateStatus={handleUpdateTaskStatus}
+                          onAssign={handleAssignTask}
+                        />
+                      ))}
+                    </div>
+                  </DndContext>
+                ) : (
+                  <div className="space-y-8">
+                    {(brandFilter === 'Todos' ? [...brands, { id: 0, name: 'Sin Marca', color: '#9ca3af' }] : brands.filter(b => String(b.id) === brandFilter)).map(brand => {
+                      const brandTasks = tasks.filter(t => (t.brandId || 0) === brand.id)
+                      if (brandTasks.length === 0 && brandFilter === 'Todos') return null
+
+                      return (
+                        <div key={brand.id} className="space-y-3">
+                          <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                            <span className="w-3 h-3 rounded-full" style={{ backgroundColor: brand.color }}></span>
+                            {brand.name}
+                            <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                              {brandTasks.length}
+                            </span>
+                          </h3>
+                          <div className="grid gap-3">
+                            {brandTasks.map(task => (
+                              <div key={task.id} className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
+                                <div className="flex items-center gap-4">
+                                  <div className={`w-2 h-2 rounded-full ${
+                                    task.status === 'completed' ? 'bg-green-500' : 
+                                    task.status === 'in_progress' ? 'bg-blue-500' : 'bg-gray-300'
+                                  }`} />
+                                  <div>
+                                    <p className={`font-medium ${task.status === 'completed' ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+                                      {task.title}
+                                    </p>
+                                    <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                                      {task.assignedToName && (
+                                        <span className="flex items-center gap-1 bg-gray-50 px-1.5 py-0.5 rounded">
+                                          👤 {task.assignedToName}
+                                        </span>
+                                      )}
+                                      {task.dueDate && (
+                                        <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded ${
+                                          new Date(task.dueDate) < new Date() && task.status !== 'completed' 
+                                            ? 'bg-red-50 text-red-600' 
+                                            : 'bg-gray-50'
+                                        }`}>
+                                          📅 {new Date(task.dueDate).toLocaleDateString()}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <select
+                                    value={task.status}
+                                    onChange={(e) => handleUpdateTaskStatus(task.id, e.target.value as TaskStatus)}
+                                    className="text-xs border-gray-200 rounded-lg bg-gray-50 py-1.5 px-2"
+                                  >
+                                    <option value="pending">Pendiente</option>
+                                    <option value="in_progress">En Progreso</option>
+                                    <option value="completed">Completada</option>
+                                  </select>
+                                  <button
+                                    onClick={() => handleDeleteTask(task.id)}
+                                    className="text-gray-400 hover:text-red-500 p-1"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>

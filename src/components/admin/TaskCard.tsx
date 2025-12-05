@@ -30,7 +30,20 @@ export function TaskCard({ task, assignmentOptions, onDelete, onUpdateStatus, on
       {...attributes}
     >
       <div className="flex justify-between items-start mb-2">
-        <p className="font-medium text-gray-900 text-sm">{task.title}</p>
+        <div>
+          {task.brandName && (
+            <span 
+              className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold mb-1"
+              style={{ 
+                backgroundColor: (task.brandColor || '#e5e7eb') + '30', 
+                color: task.brandColor || '#374151' 
+              }}
+            >
+              {task.brandName}
+            </span>
+          )}
+          <p className="font-medium text-gray-900 text-sm">{task.title}</p>
+        </div>
         <button 
           onClick={(e) => {
             e.stopPropagation()
@@ -75,8 +88,11 @@ export function TaskCard({ task, assignmentOptions, onDelete, onUpdateStatus, on
         </select>
       </div>
       
-      <div className="mt-2 text-[10px] text-gray-400 text-right">
-        {new Date(task.createdAt).toLocaleDateString()}
+      <div className="mt-2 flex justify-between items-center text-[10px] text-gray-400">
+        <span>
+          {task.dueDate ? `Vence: ${new Date(task.dueDate).toLocaleDateString()}` : ''}
+        </span>
+        <span>{new Date(task.createdAt).toLocaleDateString()}</span>
       </div>
     </div>
   )

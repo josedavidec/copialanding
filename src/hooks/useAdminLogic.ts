@@ -4,6 +4,7 @@ import {
   type Lead,
   type TeamMember,
   type Task,
+  type Brand,
   type LeadStatus,
   type StatusFilter,
   type AssignedFilter,
@@ -23,9 +24,11 @@ export function useAdminLogic() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
+  const [brands, setBrands] = useState<Brand[]>([])
   const [loading, setLoading] = useState(false)
   const [membersLoading, setMembersLoading] = useState(false)
   const [tasksLoading, setTasksLoading] = useState(false)
+  const [brandsLoading, setBrandsLoading] = useState(false)
   const [teamMemberSaving, setTeamMemberSaving] = useState(false)
   const [username, setUsername] = useState('admin')
   const [password, setPassword] = useState('')
@@ -36,11 +39,13 @@ export function useAdminLogic() {
   const [assignedFilter, setAssignedFilter] = useState<AssignedFilter>('Todos')
   const [serviceFilter, setServiceFilter] = useState<ServiceFilter>('Todos')
   const [tagFilter, setTagFilter] = useState<string>('Todos')
+  const [brandFilter, setBrandFilter] = useState<string>('Todos')
   const [showAttentionOnly, setShowAttentionOnly] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [activeLeadId, setActiveLeadId] = useState<number | null>(null)
   const [noteDraft, setNoteDraft] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('table')
+  const [taskViewMode, setTaskViewMode] = useState<'list' | 'board' | 'calendar'>('list')
   const [teamMemberForm, setTeamMemberForm] = useState<{
     name: string
     email: string
@@ -57,7 +62,7 @@ export function useAdminLogic() {
     photo: null
   })
   const [editingMemberId, setEditingMemberId] = useState<number | null>(null)
-  const [activeTab, setActiveTab] = useState<'leads' | 'team' | 'tasks'>('leads')
+  const [activeTab, setActiveTab] = useState<'leads' | 'team' | 'tasks' | 'brands'>('leads')
 
   const resetTeamMemberForm = () => {
     setTeamMemberForm({ name: '', email: '', role: '', canManageLeads: true, canManageTasks: true, photo: null })
@@ -829,6 +834,69 @@ export function useAdminLogic() {
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [teamMembers])
 
+  const fetchBrands = useCallback(async (pwd: string) => {
+    setBrandsLoading(true)
+    try {
+      const apiBase = import.meta.env.VITE_API_BASE || '/api'
+      const response = await fetch(`${apiBase}/brands`, {
+        headers: { 'x-admin-password': pwd },
+      })
+      if (!response.ok) throw new Error('Error al cargar marcas')
+      const data = await response.json()
+      setBrands(data)
+    } catch (err) {
+      console.error(err)
+      showNotification('No se pudieron cargar las marcas')
+    } finally {
+      setBrandsLoading(false)
+    }
+  }, [showNotification])
+
+  const handleCreateBrand = async (name: string, color: string, pkg: string, contactInfo: string) => {
+    const adminPassword = password.trim()
+    if (!adminPassword) return
+
+    const apiBase = import.meta.env.VITE_API_BASE || '/api'
+    try {
+      const response = await fetch(`${apiBase}/brands`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': adminPassword,
+        },
+        body: JSON.stringify({ name, color, package: pkg, contactInfo }),
+      })
+      if (!response.ok) throw new Error('Error al crear marca')
+      const newBrand = await response.json()
+      setBrands(prev => [...prev, newBrand].sort((a, b) => a.name.localeCompare(b.name)))
+      showNotification('Marca creada')
+    } catch (err) {
+      console.error(err)
+      showNotification('No se pudo crear la marca')
+    }
+  }
+
+  const handleDeleteBrand = async (brandId: number) => {
+    const adminPassword = password.trim()
+    if (!adminPassword) return
+
+    if (!window.confirm('¿Eliminar esta marca? Las tareas asociadas perderán la marca.')) return
+
+    setBrands(prev => prev.filter(b => b.id !== brandId))
+
+    const apiBase = import.meta.env.VITE_API_BASE || '/api'
+    try {
+      await fetch(`${apiBase}/brands/${brandId}`, {
+        method: 'DELETE',
+        headers: { 'x-admin-password': adminPassword },
+      })
+      showNotification('Marca eliminada')
+    } catch (err) {
+      console.error(err)
+      showNotification('Error al eliminar marca')
+    }
+  }
+
   const fetchTasks = useCallback(async (pwd: string) => {
     setTasksLoading(true)
     try {
@@ -847,7 +915,7 @@ export function useAdminLogic() {
     }
   }, [showNotification])
 
-  const handleCreateTask = async (title: string, assignedToId: number | null, dueDate: string | null) => {
+  const handleCreateTask = async (title: string, assignedToId: number | null, brandId: number | null, dueDate: string | null, startDate: string | null) => {
     const adminPassword = password.trim()
     if (!adminPassword) return
 
@@ -859,7 +927,7 @@ export function useAdminLogic() {
           'Content-Type': 'application/json',
           'x-admin-password': adminPassword,
         },
-        body: JSON.stringify({ title, assignedToId, dueDate }),
+        body: JSON.stringify({ title, assignedToId, brandId, dueDate, startDate }),
       })
       if (!response.ok) throw new Error('Error al crear tarea')
       const newTask = await response.json()
@@ -954,10 +1022,15 @@ export function useAdminLogic() {
   }
 
   useEffect(() => {
-    if (isAuthenticated && activeTab === 'tasks') {
-      fetchTasks(password)
+    if (isAuthenticated) {
+      if (activeTab === 'tasks') {
+        fetchTasks(password)
+        fetchBrands(password)
+      } else if (activeTab === 'brands') {
+        fetchBrands(password)
+      }
     }
-  }, [isAuthenticated, activeTab, fetchTasks, password])
+  }, [isAuthenticated, activeTab, fetchTasks, fetchBrands, password])
 
   const serviceOptions = useMemo(() => {
     const options = new Set<string>()
@@ -1069,18 +1142,27 @@ export function useAdminLogic() {
     handleAddTag,
     handleRemoveTag,
     handleExportCSV,
-    handleDragEnd,
     copyToClipboard,
     getEmails,
     fetchLeads,
     fetchTasks,
+    fetchBrands,
     tasks,
+    brands,
     tasksLoading,
+    brandsLoading,
     taskAssignmentOptions,
     handleCreateTask,
     handleUpdateTaskStatus,
     handleDeleteTask,
     handleAssignTask,
     handleTaskDragEnd,
+    handleDragEnd,
+    handleCreateBrand,
+    handleDeleteBrand,
+    brandFilter,
+    setBrandFilter,
+    taskViewMode,
+    setTaskViewMode,
   }
 }

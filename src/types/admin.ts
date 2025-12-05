@@ -50,7 +50,20 @@ export type Task = {
   status: TaskStatus
   assignedToId: number | null
   assignedToName: string | null
+  brandId: number | null
+  brandName: string | null
+  brandColor: string | null
   dueDate: string | null
+  startDate: string | null
+  createdAt: string
+}
+
+export type Brand = {
+  id: number
+  name: string
+  color: string
+  package?: string
+  contactInfo?: string
   createdAt: string
 }
 

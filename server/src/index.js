@@ -12,6 +12,8 @@ import fs from 'fs'
 
 const app = express()
 
+app.set('trust proxy', 1) // Confiar en el proxy (nginx)
+
 // Ensure uploads directory exists
 const uploadDir = path.join(process.cwd(), 'uploads')
 if (!fs.existsSync(uploadDir)) {
@@ -181,10 +183,21 @@ const taskSchema = z.object({
   description: z.string().optional(),
   status: z.enum(['pending', 'in_progress', 'completed']).default('pending'),
   assignedToId: z.number().int().positive().nullable().optional(),
-  dueDate: z.string().datetime().nullable().optional(),
+  brandId: z.number().int().positive().nullable().optional(),
+  dueDate: z.string().nullable().optional(),
+  startDate: z.string().nullable().optional(),
 })
 
 const taskUpdateSchema = taskSchema.partial()
+
+const brandSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  color: z.string().max(20).optional().default('#3b82f6'),
+  package: z.string().max(120).optional().default(''),
+  contactInfo: z.string().max(500).optional().default(''),
+})
+
+const brandUpdateSchema = brandSchema.partial()
 
 const newsletterSchema = z.object({
   email: z.string().email().max(160),
@@ -545,14 +558,16 @@ app.post('/api/tasks', async (req, res, next) => {
     const payload = taskSchema.parse(req.body)
 
     const [result] = await pool.query(
-      `INSERT INTO tasks (title, description, status, assigned_to, due_date)
-       VALUES (:title, :description, :status, :assignedToId, :dueDate)`,
+      `INSERT INTO tasks (title, description, status, assigned_to, brand_id, due_date, start_date)
+       VALUES (:title, :description, :status, :assignedToId, :brandId, :dueDate, :startDate)`,
       {
         title: payload.title,
         description: payload.description,
         status: payload.status,
         assignedToId: payload.assignedToId,
+        brandId: payload.brandId,
         dueDate: payload.dueDate ? toMySQLDateTime(payload.dueDate) : null,
+        startDate: payload.startDate ? toMySQLDateTime(payload.startDate) : null,
       },
     )
 
@@ -612,9 +627,17 @@ app.patch('/api/tasks/:id', async (req, res, next) => {
       updates.push('assigned_to = :assignedToId')
       bindings.assignedToId = payload.assignedToId
     }
+    if (payload.brandId !== undefined) {
+      updates.push('brand_id = :brandId')
+      bindings.brandId = payload.brandId
+    }
     if (payload.dueDate !== undefined) {
       updates.push('due_date = :dueDate')
       bindings.dueDate = payload.dueDate ? toMySQLDateTime(payload.dueDate) : null
+    }
+    if (payload.startDate !== undefined) {
+      updates.push('start_date = :startDate')
+      bindings.startDate = payload.startDate ? toMySQLDateTime(payload.startDate) : null
     }
 
     if (updates.length === 0) {
@@ -672,6 +695,64 @@ app.delete('/api/tasks/:id', async (req, res, next) => {
     }
 
     res.json({ message: 'Tarea eliminada' })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.get('/api/brands', async (req, res, next) => {
+  try {
+    const adminPassword = req.headers['x-admin-password']
+    if (adminPassword !== (process.env.ADMIN_PASSWORD || 'admin123')) {
+      return res.status(401).json({ message: 'No autorizado' })
+    }
+
+    const [rows] = await pool.query('SELECT * FROM brands ORDER BY name ASC')
+    res.json(rows)
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.post('/api/brands', async (req, res, next) => {
+  try {
+    const adminPassword = req.headers['x-admin-password']
+    if (adminPassword !== (process.env.ADMIN_PASSWORD || 'admin123')) {
+      return res.status(401).json({ message: 'No autorizado' })
+    }
+
+    const payload = brandSchema.parse(req.body)
+    const [result] = await pool.query(
+      'INSERT INTO brands (name, color, package, contact_info) VALUES (:name, :color, :package, :contactInfo)',
+      payload
+    )
+
+    const [rows] = await pool.query('SELECT * FROM brands WHERE id = :id', { id: result.insertId })
+    res.status(201).json(rows[0])
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.delete('/api/brands/:id', async (req, res, next) => {
+  try {
+    const brandId = Number.parseInt(req.params.id, 10)
+    if (!Number.isInteger(brandId) || brandId <= 0) {
+      return res.status(400).json({ message: 'Identificador inválido' })
+    }
+
+    const adminPassword = req.headers['x-admin-password']
+    if (adminPassword !== (process.env.ADMIN_PASSWORD || 'admin123')) {
+      return res.status(401).json({ message: 'No autorizado' })
+    }
+
+    const [result] = await pool.query('DELETE FROM brands WHERE id = :id', { id: brandId })
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Marca no encontrada' })
+    }
+
+    res.json({ message: 'Marca eliminada' })
   } catch (error) {
     next(error)
   }
@@ -810,18 +891,68 @@ async function ensureTables() {
   await addTeamMemberColumnIfMissing('photo_url', 'photo_url VARCHAR(255) NULL')
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS brands (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(120) NOT NULL,
+      color VARCHAR(20) NOT NULL DEFAULT '#3b82f6',
+      package VARCHAR(120) NULL,
+      contact_info TEXT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `)
+
+  const addBrandColumnIfMissing = async (columnName, columnDefinition) => {
+    const [rows] = await pool.query(
+      `SELECT COUNT(*) AS total FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = :schema AND TABLE_NAME = 'brands' AND COLUMN_NAME = :column`,
+      { schema: databaseName, column: columnName },
+    )
+
+    if (rows[0]?.total === 0) {
+      await pool.query(`ALTER TABLE brands ADD COLUMN ${columnDefinition}`)
+    }
+  }
+
+  await addBrandColumnIfMissing('package', 'package VARCHAR(120) NULL')
+  await addBrandColumnIfMissing('contact_info', 'contact_info TEXT NULL')
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS tasks (
       id INT AUTO_INCREMENT PRIMARY KEY,
       title VARCHAR(255) NOT NULL,
       description TEXT NULL,
       status ENUM('pending', 'in_progress', 'completed') NOT NULL DEFAULT 'pending',
       assigned_to INT NULL,
+      brand_id INT NULL,
       due_date DATETIME NULL,
+      start_date DATETIME NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      FOREIGN KEY (assigned_to) REFERENCES team_members(id) ON DELETE SET NULL
+      FOREIGN KEY (assigned_to) REFERENCES team_members(id) ON DELETE SET NULL,
+      FOREIGN KEY (brand_id) REFERENCES brands(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   `)
+
+  const addTaskColumnIfMissing = async (columnName, columnDefinition) => {
+    const [rows] = await pool.query(
+      `SELECT COUNT(*) AS total FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = :schema AND TABLE_NAME = 'tasks' AND COLUMN_NAME = :column`,
+      { schema: databaseName, column: columnName },
+    )
+
+    if (rows[0]?.total === 0) {
+      await pool.query(`ALTER TABLE tasks ADD COLUMN ${columnDefinition}`)
+    }
+  }
+
+  await addTaskColumnIfMissing('brand_id', 'brand_id INT NULL')
+  await addTaskColumnIfMissing('start_date', 'start_date DATETIME NULL')
+  
+  // Add foreign key if missing (simple check, might need more robust check in prod)
+  try {
+    await pool.query(`ALTER TABLE tasks ADD CONSTRAINT fk_tasks_brand FOREIGN KEY (brand_id) REFERENCES brands(id) ON DELETE SET NULL`)
+  } catch (e) {
+    // Ignore if constraint already exists
+  }
 }
 
 async function bootstrap() {
