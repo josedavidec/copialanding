@@ -11,6 +11,8 @@ import path from 'path'
 import fs from 'fs'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import nodemailer from 'nodemailer'
+import crypto from 'crypto'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_change_me'
 
@@ -277,6 +279,129 @@ app.get('/api/auth/me', async (req, res) => {
   const user = await validateAuth(req)
   if (!user) return res.status(401).json({ message: 'No autorizado' })
   res.json(user)
+})
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT) || 587,
+  secure: process.env.SMTP_SECURE === 'true',
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+})
+
+app.post('/api/auth/change-password', async (req, res) => {
+  try {
+    const user = await validateAuth(req)
+    if (!user) return res.status(401).json({ message: 'No autorizado' })
+
+    const { currentPassword, newPassword } = req.body
+    if (!currentPassword || !newPassword || newPassword.length < 6) {
+      return res.status(400).json({ message: 'Datos inválidos' })
+    }
+
+    const [rows] = await pool.query('SELECT * FROM team_members WHERE id = :id', { id: user.id })
+    const dbUser = rows[0]
+
+    if (!dbUser || !dbUser.password_hash) {
+      return res.status(400).json({ message: 'Usuario no válido' })
+    }
+
+    const validPassword = await bcrypt.compare(currentPassword, dbUser.password_hash)
+    if (!validPassword) {
+      return res.status(400).json({ message: 'La contraseña actual es incorrecta' })
+    }
+
+    const salt = await bcrypt.genSalt(10)
+    const hash = await bcrypt.hash(newPassword, salt)
+
+    await pool.query('UPDATE team_members SET password_hash = :hash WHERE id = :id', { hash, id: user.id })
+
+    res.json({ message: 'Contraseña actualizada correctamente' })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ message: 'Error al cambiar la contraseña' })
+  }
+})
+
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body
+    if (!email) return res.status(400).json({ message: 'Email requerido' })
+
+    const [rows] = await pool.query('SELECT * FROM team_members WHERE email = :email', { email })
+    const user = rows[0]
+
+    if (!user) {
+      return res.json({ message: 'Si el correo existe, recibirás instrucciones' })
+    }
+
+    const token = crypto.randomBytes(32).toString('hex')
+    const expiresAt = new Date(Date.now() + 3600000)
+
+    await pool.query(
+      'INSERT INTO password_resets (email, token, expires_at) VALUES (:email, :token, :expiresAt)',
+      { email, token, expiresAt }
+    )
+
+    const resetLink = `${req.headers.origin}/admin?token=${token}`
+
+    if (process.env.SMTP_HOST) {
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM || '"Admin" <noreply@example.com>',
+        to: email,
+        subject: 'Recuperación de contraseña',
+        html: `
+          <p>Hola ${user.name},</p>
+          <p>Has solicitado restablecer tu contraseña. Haz clic en el siguiente enlace:</p>
+          <a href="${resetLink}">${resetLink}</a>
+          <p>Este enlace expira en 1 hora.</p>
+        `
+      })
+    } else {
+      console.log('SMTP not configured. Reset link:', resetLink)
+    }
+
+    res.json({ message: 'Si el correo existe, recibirás instrucciones' })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ message: 'Error al procesar la solicitud' })
+  }
+})
+
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body
+    if (!token || !newPassword || newPassword.length < 6) {
+      return res.status(400).json({ message: 'Datos inválidos' })
+    }
+
+    const [rows] = await pool.query(
+      'SELECT * FROM password_resets WHERE token = :token AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1',
+      { token }
+    )
+    const resetRequest = rows[0]
+
+    if (!resetRequest) {
+      return res.status(400).json({ message: 'Token inválido o expirado' })
+    }
+
+    const salt = await bcrypt.genSalt(10)
+    const hash = await bcrypt.hash(newPassword, salt)
+
+    await pool.query('UPDATE team_members SET password_hash = :hash WHERE email = :email', { 
+      hash, 
+      email: resetRequest.email 
+    })
+
+    await pool.query('DELETE FROM password_resets WHERE email = :email', { email: resetRequest.email })
+
+    res.json({ message: 'Contraseña restablecida correctamente' })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ message: 'Error al restablecer la contraseña' })
+  }
 })
 
 app.get('/api/health', async (req, res) => {
@@ -963,6 +1088,18 @@ async function ensureTables() {
       id INT AUTO_INCREMENT PRIMARY KEY,
       email VARCHAR(160) NOT NULL UNIQUE,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_resets (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      email VARCHAR(160) NOT NULL,
+      token VARCHAR(255) NOT NULL,
+      expires_at DATETIME NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_token (token),
+      INDEX idx_email (email)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   `)
 

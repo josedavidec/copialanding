@@ -102,12 +102,33 @@ export default function AdminPage() {
     handleCreateBrand,
     handleDeleteBrand,
     currentUser,
+    handleChangePassword,
+    handleForgotPassword,
+    handleResetPassword,
   } = useAdminLogic()
 
   const { theme, toggleTheme } = useTheme()
   const [tagInput, setTagInput] = useState('')
+  const [showChangePassword, setShowChangePassword] = useState(false)
+  const [authView, setAuthView] = useState<'login' | 'forgot' | 'reset'>('login')
+  const [resetToken, setResetToken] = useState('')
+  
+  // Form states
+  const [changePassForm, setChangePassForm] = useState({ current: '', new: '', confirm: '' })
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [resetForm, setResetForm] = useState({ new: '', confirm: '' })
+
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
   const isBoardView = viewMode === 'board'
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const token = params.get('token')
+    if (token) {
+      setResetToken(token)
+      setAuthView('reset')
+    }
+  }, [])
 
   useEffect(() => {
     if (!currentUser) return
@@ -124,6 +145,90 @@ export default function AdminPage() {
   }, [currentUser, activeTab, setActiveTab])
 
   if (!isAuthenticated) {
+    if (authView === 'forgot') {
+      return (
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4 transition-colors duration-200">
+          <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg max-w-md w-full transition-colors duration-200">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">Recuperar Contraseña</h1>
+            <form onSubmit={async (e) => {
+              e.preventDefault()
+              await handleForgotPassword(forgotEmail)
+              setAuthView('login')
+            }} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Correo electrónico</label>
+                <input
+                  type="email"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="tu@email.com"
+                  required
+                />
+              </div>
+              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
+                Enviar instrucciones
+              </button>
+              <button type="button" onClick={() => setAuthView('login')} className="w-full text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm">
+                Volver al login
+              </button>
+            </form>
+          </div>
+        </div>
+      )
+    }
+
+    if (authView === 'reset') {
+      return (
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4 transition-colors duration-200">
+          <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg max-w-md w-full transition-colors duration-200">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">Nueva Contraseña</h1>
+            <form onSubmit={async (e) => {
+              e.preventDefault()
+              if (resetForm.new !== resetForm.confirm) {
+                alert('Las contraseñas no coinciden')
+                return
+              }
+              const success = await handleResetPassword(resetToken, resetForm.new)
+              if (success) {
+                setAuthView('login')
+                window.history.replaceState({}, document.title, window.location.pathname)
+              }
+            }} className="space-y-4">
+              <input type="text" autoComplete="username" className="hidden" readOnly />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nueva contraseña</label>
+                <input
+                  type="password"
+                  value={resetForm.new}
+                  onChange={(e) => setResetForm({ ...resetForm, new: e.target.value })}
+                  autoComplete="new-password"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                  minLength={6}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirmar contraseña</label>
+                <input
+                  type="password"
+                  value={resetForm.confirm}
+                  onChange={(e) => setResetForm({ ...resetForm, confirm: e.target.value })}
+                  autoComplete="new-password"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                  minLength={6}
+                />
+              </div>
+              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
+                Restablecer contraseña
+              </button>
+            </form>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4 transition-colors duration-200">
         <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg max-w-md w-full transition-colors duration-200">
@@ -153,6 +258,11 @@ export default function AdminPage() {
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                 placeholder="Ingresa tu contraseña"
               />
+            </div>
+            <div className="flex justify-end">
+              <button type="button" onClick={() => setAuthView('forgot')} className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+                ¿Olvidaste tu contraseña?
+              </button>
             </div>
             {error && <p className="text-red-500 text-sm">{error}</p>}
             <button
@@ -255,6 +365,12 @@ export default function AdminPage() {
                     <p className="truncate text-xs text-gray-500 dark:text-gray-400">
                       {currentUser.role || 'Sin rol'}
                     </p>
+                    <button 
+                      onClick={() => setShowChangePassword(true)}
+                      className="text-[10px] text-blue-600 hover:underline dark:text-blue-400 mt-0.5"
+                    >
+                      Cambiar contraseña
+                    </button>
                   </div>
                 </div>
               )}
@@ -1324,6 +1440,77 @@ export default function AdminPage() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+        {showChangePassword && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-md rounded-xl bg-white dark:bg-gray-800 p-6 shadow-xl">
+              <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">Cambiar Contraseña</h2>
+              <form onSubmit={async (e) => {
+                e.preventDefault()
+                if (changePassForm.new !== changePassForm.confirm) {
+                  alert('Las contraseñas no coinciden')
+                  return
+                }
+                const success = await handleChangePassword(changePassForm.current, changePassForm.new)
+                if (success) {
+                  setShowChangePassword(false)
+                  setChangePassForm({ current: '', new: '', confirm: '' })
+                }
+              }} className="space-y-4">
+                <input type="text" autoComplete="username" className="hidden" readOnly value={currentUser?.email || ''} />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Contraseña actual</label>
+                  <input
+                    type="password"
+                    value={changePassForm.current}
+                    onChange={(e) => setChangePassForm({ ...changePassForm, current: e.target.value })}
+                    autoComplete="current-password"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nueva contraseña</label>
+                  <input
+                    type="password"
+                    value={changePassForm.new}
+                    onChange={(e) => setChangePassForm({ ...changePassForm, new: e.target.value })}
+                    autoComplete="new-password"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                    minLength={6}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirmar nueva contraseña</label>
+                  <input
+                    type="password"
+                    value={changePassForm.confirm}
+                    onChange={(e) => setChangePassForm({ ...changePassForm, confirm: e.target.value })}
+                    autoComplete="new-password"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                    minLength={6}
+                  />
+                </div>
+                <div className="flex justify-end gap-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setShowChangePassword(false)}
+                    className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 rounded-lg"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg"
+                  >
+                    Cambiar contraseña
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

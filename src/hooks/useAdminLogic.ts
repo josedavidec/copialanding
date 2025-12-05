@@ -1140,7 +1140,77 @@ export function useAdminLogic() {
 
   const activeLead = activeLeadId ? leads.find((lead) => lead.id === activeLeadId) : null
 
+  const handleChangePassword = async (currentPassword: string, newPassword: string) => {
+    try {
+      const apiBase = import.meta.env.VITE_API_BASE || '/api'
+      const response = await fetch(`${apiBase}/auth/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      })
+
+      const data = await response.json()
+      if (response.ok) {
+        showNotification('Contraseña actualizada correctamente')
+        return true
+      } else {
+        showNotification(data.message || 'Error al cambiar la contraseña')
+        return false
+      }
+    } catch (error) {
+      showNotification('Error de conexión')
+      return false
+    }
+  }
+
+  const handleForgotPassword = async (email: string) => {
+    try {
+      const apiBase = import.meta.env.VITE_API_BASE || '/api'
+      const response = await fetch(`${apiBase}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      
+      const data = await response.json()
+      showNotification(data.message)
+      return true
+    } catch (error) {
+      showNotification('Error de conexión')
+      return false
+    }
+  }
+
+  const handleResetPassword = async (token: string, newPassword: string) => {
+    try {
+      const apiBase = import.meta.env.VITE_API_BASE || '/api'
+      const response = await fetch(`${apiBase}/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, newPassword }),
+      })
+
+      const data = await response.json()
+      if (response.ok) {
+        showNotification('Contraseña restablecida. Inicia sesión.')
+        return true
+      } else {
+        showNotification(data.message || 'Error al restablecer')
+        return false
+      }
+    } catch (error) {
+      showNotification('Error de conexión')
+      return false
+    }
+  }
+
   return {
+    handleChangePassword,
+    handleForgotPassword,
+    handleResetPassword,
     leads,
     teamMembers,
     currentUser,
