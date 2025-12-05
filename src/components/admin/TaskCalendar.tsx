@@ -50,30 +50,30 @@ export function TaskCalendar({ tasks }: TaskCalendarProps) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="p-4 flex items-center justify-between border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+      <div className="p-4 flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
           {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
         </h2>
         <div className="flex gap-2">
-          <button onClick={prevMonth} className="p-1 hover:bg-gray-100 rounded">
+          <button onClick={prevMonth} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded dark:text-gray-300">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
           </button>
-          <button onClick={nextMonth} className="p-1 hover:bg-gray-100 rounded">
+          <button onClick={nextMonth} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded dark:text-gray-300">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-7 text-center text-xs font-semibold text-gray-500 border-b border-gray-200 bg-gray-50">
+      <div className="grid grid-cols-7 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
         {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => (
           <div key={day} className="py-2">{day}</div>
         ))}
       </div>
 
-      <div className="grid grid-cols-7 auto-rows-fr bg-gray-200 gap-px">
+      <div className="grid grid-cols-7 auto-rows-fr bg-gray-200 dark:bg-gray-700 gap-px">
         {Array.from({ length: firstDay }).map((_, i) => (
-          <div key={`empty-${i}`} className="bg-white min-h-[100px]" />
+          <div key={`empty-${i}`} className="bg-white dark:bg-gray-800 min-h-[100px]" />
         ))}
         {Array.from({ length: days }).map((_, i) => {
           const day = i + 1
@@ -81,15 +81,15 @@ export function TaskCalendar({ tasks }: TaskCalendarProps) {
           const isToday = new Date().toDateString() === new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString()
 
           return (
-            <div key={day} className={`bg-white min-h-[100px] p-1 ${isToday ? 'bg-blue-50' : ''}`}>
-              <div className={`text-right text-xs mb-1 ${isToday ? 'font-bold text-blue-600' : 'text-gray-500'}`}>
+            <div key={day} className={`bg-white dark:bg-gray-800 min-h-[100px] p-1 ${isToday ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
+              <div className={`text-right text-xs mb-1 ${isToday ? 'font-bold text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
                 {day}
               </div>
               <div className="space-y-1">
                 {dayTasks.map(task => (
                   <div 
                     key={task.id} 
-                    className="text-[10px] p-1 rounded truncate border-l-2"
+                    className="text-[10px] p-1 rounded truncate border-l-2 dark:text-gray-300"
                     style={{ 
                       backgroundColor: (task.brandColor || '#e5e7eb') + '20',
                       borderLeftColor: task.brandColor || '#9ca3af'

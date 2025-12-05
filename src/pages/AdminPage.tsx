@@ -18,6 +18,7 @@ import { formatDate, formatRelativeFromNow, leadNeedsAttention } from '../utils/
 
 import { BrandManager } from '../components/admin/BrandManager'
 import { TaskCalendar } from '../components/admin/TaskCalendar'
+import { useTheme } from '../hooks/useTheme'
 
 export default function AdminPage() {
   const {
@@ -102,18 +103,19 @@ export default function AdminPage() {
     handleDeleteBrand,
   } = useAdminLogic()
 
+  const { theme, toggleTheme } = useTheme()
   const [tagInput, setTagInput] = useState('')
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
   const isBoardView = viewMode === 'board'
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full">
-          <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">Admin Login</h1>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4 transition-colors duration-200">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg max-w-md w-full transition-colors duration-200">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">Admin Login</h1>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="admin-username">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="admin-username">
                 Usuario (opcional)
               </label>
               <input
@@ -122,18 +124,18 @@ export default function AdminPage() {
                 value={username}
                 onChange={(event) => setUsername(event.target.value)}
                 autoComplete="username"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                 placeholder="Escribe tu usuario o correo"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Contraseña</label>
               <input
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 autoComplete="current-password"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                 placeholder="Ingresa la contraseña de admin"
               />
             </div>
@@ -152,20 +154,20 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-4 md:p-8 transition-colors duration-200">
       <div className="mx-auto max-w-[1920px]">
         <div className="flex flex-col gap-6 lg:flex-row">
-          <aside className="flex flex-col gap-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm lg:w-64 shrink-0">
+          <aside className="flex flex-col gap-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm lg:w-64 shrink-0 transition-colors duration-200">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Navegación</p>
-              <h2 className="mt-2 text-2xl font-bold text-gray-900">Panel admin</h2>
-              <p className="mt-1 text-sm text-gray-600">Gestiona leads, notas internas y el equipo comercial.</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Navegación</p>
+              <h2 className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">Panel admin</h2>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Gestiona leads, notas internas y el equipo comercial.</p>
             </div>
             <nav className="space-y-2">
               <button
                 type="button"
                 onClick={() => setActiveTab('leads')}
-                className={`w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition-colors ${activeTab === 'leads' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}
+                className={`w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition-colors ${activeTab === 'leads' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}
               >
                 Leads
                 <span
@@ -177,7 +179,7 @@ export default function AdminPage() {
               <button
                 type="button"
                 onClick={() => setActiveTab('team')}
-                className={`w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition-colors ${activeTab === 'team' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}
+                className={`w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition-colors ${activeTab === 'team' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}
               >
                 Equipo
                 <span
@@ -189,7 +191,7 @@ export default function AdminPage() {
               <button
                 type="button"
                 onClick={() => setActiveTab('tasks')}
-                className={`w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition-colors ${activeTab === 'tasks' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}
+                className={`w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition-colors ${activeTab === 'tasks' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}
               >
                 Tareas
                 <span
@@ -201,7 +203,7 @@ export default function AdminPage() {
               <button
                 type="button"
                 onClick={() => setActiveTab('brands')}
-                className={`w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition-colors ${activeTab === 'brands' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}
+                className={`w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition-colors ${activeTab === 'brands' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}
               >
                 Marcas
                 <span
@@ -211,20 +213,28 @@ export default function AdminPage() {
                 </span>
               </button>
             </nav>
-            <button
-              onClick={handleLogout}
-              className="mt-auto inline-flex items-center justify-center rounded-xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
-            >
-              Cerrar sesión
-            </button>
+            <div className="mt-auto flex flex-col gap-2">
+              <button
+                onClick={toggleTheme}
+                className="inline-flex items-center justify-center rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+              >
+                {theme === 'light' ? '🌙 Modo Oscuro' : '☀️ Modo Claro'}
+              </button>
+              <button
+                onClick={handleLogout}
+                className="inline-flex items-center justify-center rounded-xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 dark:border-red-900/30 dark:hover:bg-red-900/20"
+              >
+                Cerrar sesión
+              </button>
+            </div>
           </aside>
           <div className="flex-1 space-y-8 min-w-0">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
                   {activeTab === 'leads' ? 'Panel de Leads' : activeTab === 'team' ? 'Gestión de Equipo' : activeTab === 'brands' ? 'Gestión de Marcas' : 'Gestor de Tareas'}
                 </h1>
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                   {activeTab === 'leads' 
                     ? 'Gestiona contactos, notas internas y métricas clave en tiempo real.'
                     : activeTab === 'team'
@@ -236,18 +246,18 @@ export default function AdminPage() {
               </div>
               {activeTab === 'leads' && (
                 <div className="flex flex-wrap items-center justify-end gap-3">
-                  <div className="flex overflow-hidden rounded-lg border border-gray-300 bg-white text-sm font-medium shadow-sm">
+                  <div className="flex overflow-hidden rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium shadow-sm">
                     <button
                       type="button"
                       onClick={() => setViewMode('table')}
-                      className={`px-3 py-1.5 transition-colors ${viewMode === 'table' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                      className={`px-3 py-1.5 transition-colors ${viewMode === 'table' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}
                     >
                       Vista tabla
                     </button>
                     <button
                       type="button"
                       onClick={() => setViewMode('board')}
-                      className={`px-3 py-1.5 transition-colors ${viewMode === 'board' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                      className={`px-3 py-1.5 transition-colors ${viewMode === 'board' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}
                     >
                       Vista Kanban
                     </button>
@@ -255,7 +265,7 @@ export default function AdminPage() {
                   <button
                     onClick={() => fetchLeads(password)}
                     disabled={loading}
-                    className="inline-flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-60"
+                    className="inline-flex items-center gap-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm disabled:opacity-60"
                   >
                     <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" aria-hidden />
                     Actualizar
@@ -268,21 +278,21 @@ export default function AdminPage() {
                     <button
                       type="button"
                       onClick={() => setTaskViewMode('list')}
-                      className={`px-3 py-1.5 transition-colors ${taskViewMode === 'list' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                      className={`px-3 py-1.5 transition-colors ${taskViewMode === 'list' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}
                     >
                       Lista
                     </button>
                     <button
                       type="button"
                       onClick={() => setTaskViewMode('board')}
-                      className={`px-3 py-1.5 transition-colors ${taskViewMode === 'board' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                      className={`px-3 py-1.5 transition-colors ${taskViewMode === 'board' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}
                     >
                       Kanban
                     </button>
                     <button
                       type="button"
                       onClick={() => setTaskViewMode('calendar')}
-                      className={`px-3 py-1.5 transition-colors ${taskViewMode === 'calendar' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                      className={`px-3 py-1.5 transition-colors ${taskViewMode === 'calendar' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}
                     >
                       Calendario
                     </button>
@@ -307,7 +317,7 @@ export default function AdminPage() {
                   <MetricCard label="Contactos semana" value={metrics.contactsThisWeek.toString()} sublabel="Últimos 7 días" />
                 </div>
 
-                <div className="bg-white border border-gray-100 shadow-sm rounded-xl p-5 space-y-4">
+                <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm rounded-xl p-5 space-y-4">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex flex-wrap gap-3 items-center">
                       <div className="relative">
@@ -315,7 +325,7 @@ export default function AdminPage() {
                           type="text"
                           value={searchTerm}
                           onChange={(event) => setSearchTerm(event.target.value)}
-                          className="w-full md:w-64 lg:w-72 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                          className="w-full md:w-64 lg:w-72 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800"
                           placeholder="Buscar por nombre, correo, empresa..."
                         />
                       </div>
@@ -323,7 +333,7 @@ export default function AdminPage() {
                       <select
                         value={statusFilter}
                         onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-                        className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                        className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm text-gray-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800"
                       >
                         <option value="Todos">Todos los estados</option>
                         {STATUS_OPTIONS.map((status) => (
@@ -336,7 +346,7 @@ export default function AdminPage() {
                       <select
                         value={serviceFilter}
                         onChange={(event) => setServiceFilter(event.target.value as ServiceFilter)}
-                        className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                        className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm text-gray-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800"
                       >
                         <option value="Todos">Todos los servicios</option>
                         {serviceOptions.map((service) => (
@@ -349,7 +359,7 @@ export default function AdminPage() {
                       <select
                         value={tagFilter}
                         onChange={(event) => setTagFilter(event.target.value)}
-                        className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                        className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm text-gray-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800"
                       >
                         <option value="Todos">Todas las etiquetas</option>
                         {tagOptions.map((tag) => (
@@ -362,7 +372,7 @@ export default function AdminPage() {
                       <select
                         value={assignedFilter}
                         onChange={(event) => setAssignedFilter(event.target.value as AssignedFilter)}
-                        className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                        className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm text-gray-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800"
                       >
                         <option value="Todos">Todos los responsables</option>
                         <option value="Sin asignar">Sin asignar</option>
@@ -373,7 +383,7 @@ export default function AdminPage() {
                         ))}
                       </select>
 
-                      <label className="inline-flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm text-gray-600 hover:bg-gray-100">
+                      <label className="inline-flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
                         <input
                           type="checkbox"
                           checked={showAttentionOnly}
@@ -385,7 +395,7 @@ export default function AdminPage() {
 
                       <button
                         onClick={() => copyToClipboard(getEmails(filteredLeads))}
-                        className="inline-flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                        className="inline-flex items-center gap-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
@@ -715,10 +725,10 @@ export default function AdminPage() {
                 )}
               </>
             ) : activeTab === 'team' ? (
-              <div className="bg-white border border-gray-100 shadow-sm rounded-xl p-5 space-y-5">
+              <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm rounded-xl p-5 space-y-5">
                 <div>
-                  <h2 className="text-sm font-semibold text-gray-700">Equipo de seguimiento</h2>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Equipo de seguimiento</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Define quién puede recibir leads y asigna roles de seguimiento para el equipo comercial.
                   </p>
                 </div>
@@ -726,7 +736,7 @@ export default function AdminPage() {
                 <form onSubmit={handleTeamMemberSubmit} className="space-y-4">
                   <div className="grid gap-3 md:grid-cols-[2fr_2fr_2fr] md:items-start">
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-semibold text-gray-600" htmlFor="member-name">
+                      <label className="text-xs font-semibold text-gray-600 dark:text-gray-400" htmlFor="member-name">
                         Nombre completo
                       </label>
                       <input
@@ -735,13 +745,13 @@ export default function AdminPage() {
                         value={teamMemberForm.name}
                         onChange={handleTeamMemberFieldChange('name')}
                         autoComplete="name"
-                        className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                        className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800"
                         placeholder="Ej. Ana López"
                         required
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-semibold text-gray-600" htmlFor="member-email">
+                      <label className="text-xs font-semibold text-gray-600 dark:text-gray-400" htmlFor="member-email">
                         Correo (opcional)
                       </label>
                       <input
@@ -750,12 +760,12 @@ export default function AdminPage() {
                         value={teamMemberForm.email}
                         onChange={handleTeamMemberFieldChange('email')}
                         autoComplete="email"
-                        className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                        className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800"
                         placeholder="ana@empresa.com"
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-semibold text-gray-600" htmlFor="member-role">
+                      <label className="text-xs font-semibold text-gray-600 dark:text-gray-400" htmlFor="member-role">
                         Rol (opcional)
                       </label>
                       <input
@@ -764,14 +774,14 @@ export default function AdminPage() {
                         value={teamMemberForm.role}
                         onChange={handleTeamMemberFieldChange('role')}
                         autoComplete="organization-title"
-                        className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                        className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800"
                         placeholder="Ej. Ejecutivo comercial"
                       />
                     </div>
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <label className="text-xs font-semibold text-gray-600" htmlFor="member-photo">
+                    <label className="text-xs font-semibold text-gray-600 dark:text-gray-400" htmlFor="member-photo">
                       Foto (opcional)
                     </label>
                     <input
@@ -779,12 +789,12 @@ export default function AdminPage() {
                       type="file"
                       accept="image/*"
                       onChange={handleTeamMemberPhotoChange}
-                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      className="block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 dark:file:bg-blue-900/30 file:text-blue-700 dark:file:text-blue-400 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/50"
                     />
                   </div>
                   
                   <div className="flex flex-wrap gap-4 items-center">
-                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                    <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                       <input
                         type="checkbox"
                         checked={teamMemberForm.canManageLeads}
@@ -793,7 +803,7 @@ export default function AdminPage() {
                       />
                       Gestiona Leads
                     </label>
-                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                    <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                       <input
                         type="checkbox"
                         checked={teamMemberForm.canManageTasks}
@@ -809,7 +819,7 @@ export default function AdminPage() {
                       <button
                         type="button"
                         onClick={handleCancelTeamMemberEdit}
-                        className="hidden md:inline-flex items-center justify-center rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100"
+                        className="hidden md:inline-flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                       >
                         Cancelar
                       </button>
@@ -825,7 +835,7 @@ export default function AdminPage() {
                       <button
                         type="button"
                         onClick={handleCancelTeamMemberEdit}
-                        className="md:hidden inline-flex items-center justify-center rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100"
+                        className="md:hidden inline-flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                       >
                         Cancelar edición
                       </button>
@@ -834,8 +844,8 @@ export default function AdminPage() {
                 </form>
 
                 <div className="overflow-x-auto">
-                  <table className="min-w-full text-left text-sm text-gray-600">
-                    <thead className="bg-gray-50 text-gray-900 font-semibold border border-gray-200">
+                  <table className="min-w-full text-left text-sm text-gray-600 dark:text-gray-400">
+                    <thead className="bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold border border-gray-200 dark:border-gray-700">
                       <tr>
                         <th className="px-4 py-3">Nombre</th>
                         <th className="px-4 py-3">Correo</th>
@@ -844,15 +854,15 @@ export default function AdminPage() {
                         <th className="px-4 py-3 text-right">Acciones</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                       {teamMembers.map((member) => (
                         <tr key={member.id}>
-                          <td className="px-4 py-3 font-medium text-gray-900">
+                          <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">
                             <div className="flex items-center gap-3">
                               {member.photoUrl ? (
                                 <img src={member.photoUrl} alt={member.name} className="w-8 h-8 rounded-full object-cover" />
                               ) : (
-                                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs font-bold">
+                                <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400 text-xs font-bold">
                                   {member.name.charAt(0).toUpperCase()}
                                 </div>
                               )}
@@ -861,23 +871,23 @@ export default function AdminPage() {
                           </td>
                           <td className="px-4 py-3">
                             {member.email ? (
-                              <a href={`mailto:${member.email}`} className="text-blue-600 hover:text-blue-800 hover:underline">
+                              <a href={`mailto:${member.email}`} className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline">
                                 {member.email}
                               </a>
                             ) : (
-                              <span className="text-xs text-gray-400">Sin correo</span>
+                              <span className="text-xs text-gray-400 dark:text-gray-500">Sin correo</span>
                             )}
                           </td>
-                          <td className="px-4 py-3">{member.role ?? <span className="text-xs text-gray-400">Sin rol</span>}</td>
+                          <td className="px-4 py-3">{member.role ?? <span className="text-xs text-gray-400 dark:text-gray-500">Sin rol</span>}</td>
                           <td className="px-4 py-3">
                             <div className="flex gap-2">
                               {member.canManageLeads && (
-                                <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                                <span className="inline-flex items-center rounded-full bg-blue-50 dark:bg-blue-900/30 px-2 py-1 text-xs font-medium text-blue-700 dark:text-blue-400 ring-1 ring-inset ring-blue-700/10 dark:ring-blue-400/30">
                                   Leads
                                 </span>
                               )}
                               {member.canManageTasks && (
-                                <span className="inline-flex items-center rounded-full bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-700/10">
+                                <span className="inline-flex items-center rounded-full bg-purple-50 dark:bg-purple-900/30 px-2 py-1 text-xs font-medium text-purple-700 dark:text-purple-400 ring-1 ring-inset ring-purple-700/10 dark:ring-purple-400/30">
                                   Tareas
                                 </span>
                               )}
@@ -888,14 +898,14 @@ export default function AdminPage() {
                               <button
                                 type="button"
                                 onClick={() => handleEditTeamMember(member)}
-                                className="inline-flex items-center rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-100"
+                                className="inline-flex items-center rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                               >
                                 Editar
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleDeleteTeamMember(member.id)}
-                                className="inline-flex items-center rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
+                                className="inline-flex items-center rounded-lg border border-red-200 dark:border-red-900/30 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
                               >
                                 Eliminar
                               </button>
@@ -905,14 +915,14 @@ export default function AdminPage() {
                       ))}
                       {teamMembers.length === 0 && !membersLoading && (
                         <tr>
-                          <td colSpan={4} className="px-4 py-6 text-center text-sm text-gray-400">
+                          <td colSpan={4} className="px-4 py-6 text-center text-sm text-gray-400 dark:text-gray-500">
                             Aún no hay integrantes registrados. Agrega el primero para comenzar.
                           </td>
                         </tr>
                       )}
                       {membersLoading && (
                         <tr>
-                          <td colSpan={4} className="px-4 py-6 text-center text-sm text-gray-400">
+                          <td colSpan={4} className="px-4 py-6 text-center text-sm text-gray-400 dark:text-gray-500">
                             Cargando equipo...
                           </td>
                         </tr>
@@ -930,8 +940,8 @@ export default function AdminPage() {
               />
             ) : (
               <div className="space-y-6">
-                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Nueva Tarea</h2>
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Nueva Tarea</h2>
                   <form
                     onSubmit={(e) => {
                       e.preventDefault()
@@ -956,20 +966,20 @@ export default function AdminPage() {
                     className="flex flex-col gap-4 md:flex-row md:items-end"
                   >
                     <div className="flex-1">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Título</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título</label>
                       <input
                         name="title"
                         type="text"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
                         placeholder="¿Qué hay que hacer?"
                         required
                       />
                     </div>
                     <div className="w-full md:w-48">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Marca</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Marca</label>
                       <select
                         name="brandId"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white dark:bg-gray-700 dark:text-white"
                       >
                         <option value="">Sin marca</option>
                         {brands.map(brand => (
@@ -978,10 +988,10 @@ export default function AdminPage() {
                       </select>
                     </div>
                     <div className="w-full md:w-48">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Asignar a</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Asignar a</label>
                       <select
                         name="assignedTo"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white dark:bg-gray-700 dark:text-white"
                       >
                         <option value="">Sin asignar</option>
                         {taskAssignmentOptions.map(member => (
@@ -990,19 +1000,19 @@ export default function AdminPage() {
                       </select>
                     </div>
                     <div className="w-full md:w-40">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Inicio</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Inicio</label>
                       <input
                         name="startDate"
                         type="date"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
                       />
                     </div>
                     <div className="w-full md:w-40">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Vencimiento</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Vencimiento</label>
                       <input
                         name="dueDate"
                         type="date"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
                       />
                     </div>
                     <button
@@ -1015,15 +1025,15 @@ export default function AdminPage() {
                 </div>
 
                 {/* Filters */}
-                <div className="flex items-center gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                  <span className="text-sm font-medium text-gray-700">Filtrar por marca:</span>
+                <div className="flex items-center gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filtrar por marca:</span>
                   <div className="flex gap-2 overflow-x-auto pb-1">
                     <button
                       onClick={() => setBrandFilter('Todos')}
                       className={`px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
                         brandFilter === 'Todos' 
-                          ? 'bg-gray-800 text-white' 
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          ? 'bg-gray-800 dark:bg-gray-600 text-white' 
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
                       Todas
@@ -1034,8 +1044,8 @@ export default function AdminPage() {
                         onClick={() => setBrandFilter(String(brand.id))}
                         className={`px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap flex items-center gap-2 ${
                           brandFilter === String(brand.id)
-                            ? 'text-white ring-2 ring-offset-1'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            ? 'text-white ring-2 ring-offset-1 dark:ring-offset-gray-800'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                         }`}
                         style={brandFilter === String(brand.id) ? { backgroundColor: brand.color, borderColor: brand.color } : {}}
                       >

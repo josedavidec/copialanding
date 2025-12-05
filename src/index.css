@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-brand-50: #f2fbff;
   --color-brand-100: #d3f3ff;
@@ -26,6 +28,9 @@
 
 :root {
 	color-scheme: light;
+}
+:root.dark {
+	color-scheme: dark;
 }
 
 @layer base {

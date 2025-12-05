@@ -25,7 +25,7 @@ export function TaskCard({ task, assignmentOptions, onDelete, onUpdateStatus, on
     <div
       ref={setNodeRef}
       style={style}
-      className={`bg-white p-3 rounded-lg shadow-sm border border-gray-200 group cursor-grab ${isDragging ? 'ring-2 ring-blue-200' : 'hover:shadow-md'}`}
+      className={`bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 group cursor-grab ${isDragging ? 'ring-2 ring-blue-200 dark:ring-blue-800' : 'hover:shadow-md dark:hover:border-gray-600'}`}
       {...listeners}
       {...attributes}
     >
@@ -42,14 +42,14 @@ export function TaskCard({ task, assignmentOptions, onDelete, onUpdateStatus, on
               {task.brandName}
             </span>
           )}
-          <p className="font-medium text-gray-900 text-sm">{task.title}</p>
+          <p className="font-medium text-gray-900 dark:text-white text-sm">{task.title}</p>
         </div>
         <button 
           onClick={(e) => {
             e.stopPropagation()
             onDelete(task.id)
           }}
-          className="text-gray-400 hover:text-red-500"
+          className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400"
           onPointerDown={(e) => e.stopPropagation()}
         >
           ×
@@ -63,7 +63,7 @@ export function TaskCard({ task, assignmentOptions, onDelete, onUpdateStatus, on
             const val = e.target.value ? Number(e.target.value) : null
             onAssign(task.id, val)
           }}
-          className="text-xs border-gray-200 rounded bg-gray-50 py-1 px-2 w-full"
+          className="text-xs border-gray-200 dark:border-gray-700 rounded bg-gray-50 dark:bg-gray-700 dark:text-white py-1 px-2 w-full"
           onPointerDown={(e) => e.stopPropagation()}
         >
           <option value="">Sin asignar</option>
@@ -76,9 +76,9 @@ export function TaskCard({ task, assignmentOptions, onDelete, onUpdateStatus, on
           value={task.status}
           onChange={(e) => onUpdateStatus(task.id, e.target.value as Task['status'])}
           className={`text-xs border-none rounded py-1 px-2 w-full font-medium ${
-            task.status === 'completed' ? 'bg-green-50 text-green-700' :
-            task.status === 'in_progress' ? 'bg-blue-50 text-blue-700' :
-            'bg-gray-100 text-gray-600'
+            task.status === 'completed' ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+            task.status === 'in_progress' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' :
+            'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
           }`}
           onPointerDown={(e) => e.stopPropagation()}
         >
@@ -88,7 +88,7 @@ export function TaskCard({ task, assignmentOptions, onDelete, onUpdateStatus, on
         </select>
       </div>
       
-      <div className="mt-2 flex justify-between items-center text-[10px] text-gray-400">
+      <div className="mt-2 flex justify-between items-center text-[10px] text-gray-400 dark:text-gray-500">
         <span>
           {task.dueDate ? `Vence: ${new Date(task.dueDate).toLocaleDateString()}` : ''}
         </span>
